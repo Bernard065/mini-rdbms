@@ -15,7 +15,12 @@ export type {
   DatabaseError,
 } from './database';
 
-export { DataType, isValidDataType, isValidColumnValue, isRow } from './database';
+export {
+  DataType,
+  isValidDataType,
+  isValidColumnValue,
+  isRow,
+} from './database';
 
 // SQL types
 export type {
