@@ -27,7 +27,7 @@ export interface CreateTableStatement {
 export interface InsertStatement {
   readonly type: 'INSERT';
   readonly tableName: string;
-  readonly columns: ReadonlyArray<string> | null; 
+  readonly columns: ReadonlyArray<string> | null;
   readonly values: ReadonlyArray<ReadonlyArray<ColumnValue>>;
 }
 
