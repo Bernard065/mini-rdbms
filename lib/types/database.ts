@@ -1,4 +1,3 @@
-
 // Supported SQL data types
 export enum DataType {
   INTEGER = 'INTEGER',
@@ -37,7 +36,7 @@ export interface TableSchema {
 export interface Index {
   readonly columnName: string;
   readonly unique: boolean;
-  readonly entries: Map<ColumnValue, Set<number>>; 
+  readonly entries: Map<ColumnValue, Set<number>>;
 }
 
 // Complete table data structure
@@ -66,10 +65,12 @@ export type DatabaseError =
   | { readonly type: 'TABLE_NOT_FOUND'; readonly tableName: string }
   | { readonly type: 'TABLE_ALREADY_EXISTS'; readonly tableName: string }
   | { readonly type: 'COLUMN_NOT_FOUND'; readonly columnName: string }
-  | { readonly type: 'CONSTRAINT_VIOLATION'; readonly violation: ConstraintViolation }
+  | {
+      readonly type: 'CONSTRAINT_VIOLATION';
+      readonly violation: ConstraintViolation;
+    }
   | { readonly type: 'SYNTAX_ERROR'; readonly message: string }
   | { readonly type: 'EXECUTION_ERROR'; readonly message: string };
-
 
 // Type guards for runtime type checking of database types.
 export const isValidDataType = (value: string): value is DataType => {
