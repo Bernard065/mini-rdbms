@@ -83,7 +83,7 @@ export class TableStorage {
 
     // Check constraints and add to indices
     const rowIndex = this.rows.length;
-    
+
     for (const column of this.schema.columns) {
       const value = preparedRow[column.name] ?? null;
 
@@ -103,11 +103,7 @@ export class TableStorage {
       if (column.unique) {
         const uniqueIndex = this.indices.get(column.name);
         if (uniqueIndex) {
-          const violation = IndexManager.addEntry(
-            uniqueIndex,
-            value,
-            rowIndex
-          );
+          const violation = IndexManager.addEntry(uniqueIndex, value, rowIndex);
           if (violation) {
             // Rollback
             this.rollbackIndexAdditions(preparedRow, rowIndex);
@@ -225,10 +221,7 @@ export class TableStorage {
     };
   }
 
-
-  deleteRows(
-    filter: (row: Row, index: number) => boolean
-  ): number {
+  deleteRows(filter: (row: Row, index: number) => boolean): number {
     const indicesToDelete: number[] = [];
 
     // Find rows to delete

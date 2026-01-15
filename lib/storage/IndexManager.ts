@@ -15,7 +15,7 @@ export class IndexManager {
     rowIndex: number
   ): ConstraintViolation | null {
     const normalizedValue = this.normalizeValue(value);
-    
+
     const existingIndices = index.entries.get(normalizedValue);
 
     if (index.unique && existingIndices && existingIndices.size > 0) {
@@ -37,11 +37,7 @@ export class IndexManager {
     return null;
   }
 
-  static removeEntry(
-    index: Index,
-    value: ColumnValue,
-    rowIndex: number
-  ): void {
+  static removeEntry(index: Index, value: ColumnValue, rowIndex: number): void {
     const normalizedValue = this.normalizeValue(value);
     const indices = index.entries.get(normalizedValue);
 
@@ -52,7 +48,6 @@ export class IndexManager {
       }
     }
   }
-
 
   static updateEntry(
     index: Index,
@@ -165,7 +160,7 @@ export class IndexManager {
 
   static likeQuery(index: Index, pattern: string): Set<number> {
     const result = new Set<number>();
-    
+
     // Convert SQL LIKE pattern to regex
     const regexPattern = pattern
       .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape special chars
