@@ -21,7 +21,6 @@ export class TableStorage {
     this.indices = new Map();
     this.autoIncrementCounter = 1;
 
-    // Create indices for primary key and unique columns
     this.initializeIndices();
   }
 
@@ -47,26 +46,22 @@ export class TableStorage {
     lastInsertId?: number;
     error?: ConstraintViolation;
   } {
-    // Validate and prepare row data
     const preparedRow: Row = {};
     let lastInsertId: number | null = null;
 
     for (const column of this.schema.columns) {
       let value = data[column.name];
 
-      // Handle auto-increment
       if (column.autoIncrement && column.primaryKey) {
         value = this.autoIncrementCounter;
         lastInsertId = this.autoIncrementCounter;
         this.autoIncrementCounter++;
       }
 
-      // Handle default values
       if (value === undefined && column.defaultValue !== null) {
         value = column.defaultValue;
       }
 
-      // Validate type
       const validation = TypeValidator.validate(
         value,
         column.type,
@@ -81,13 +76,11 @@ export class TableStorage {
       preparedRow[column.name] = validation.value;
     }
 
-    // Check constraints and add to indices
     const rowIndex = this.rows.length;
 
     for (const column of this.schema.columns) {
       const value = preparedRow[column.name] ?? null;
 
-      // Check primary key constraint
       if (column.primaryKey && this.schema.primaryKey) {
         const pkIndex = this.indices.get(this.schema.primaryKey);
         if (pkIndex) {
@@ -98,14 +91,11 @@ export class TableStorage {
           }
         }
       }
-
-      // Check unique constraints
       if (column.unique) {
         const uniqueIndex = this.indices.get(column.name);
         if (uniqueIndex) {
           const violation = IndexManager.addEntry(uniqueIndex, value, rowIndex);
           if (violation) {
-            // Rollback
             this.rollbackIndexAdditions(preparedRow, rowIndex);
             return { success: false, error: violation };
           }
@@ -113,7 +103,6 @@ export class TableStorage {
       }
     }
 
-    // Add row to table
     this.rows.push(preparedRow);
 
     const result: {
@@ -140,7 +129,6 @@ export class TableStorage {
   } {
     const affectedIndices: number[] = [];
 
-    // Find rows to update
     for (let i = 0; i < this.rows.length; i++) {
       const row = this.rows[i];
       if (row && filter(row, i)) {
@@ -148,7 +136,6 @@ export class TableStorage {
       }
     }
 
-    // Validate updates
     for (const [columnName, newValue] of Object.entries(updates)) {
       const column = this.schema.columns.find((c) => c.name === columnName);
       if (!column) {
@@ -164,7 +151,6 @@ export class TableStorage {
         };
       }
 
-      // Validate type
       const validation = TypeValidator.validate(
         newValue,
         column.type,
@@ -181,7 +167,6 @@ export class TableStorage {
       }
     }
 
-    // Perform updates
     for (const rowIndex of affectedIndices) {
       const row = this.rows[rowIndex];
       if (!row) continue;
@@ -192,7 +177,6 @@ export class TableStorage {
 
         const oldValue = row[columnName];
 
-        // Update indices if column is indexed
         const index = this.indices.get(columnName);
         if (index && oldValue !== undefined) {
           const violation = IndexManager.updateEntry(
@@ -210,7 +194,6 @@ export class TableStorage {
           }
         }
 
-        // Update the row
         row[columnName] = newValue;
       }
     }
@@ -224,7 +207,6 @@ export class TableStorage {
   deleteRows(filter: (row: Row, index: number) => boolean): number {
     const indicesToDelete: number[] = [];
 
-    // Find rows to delete
     for (let i = 0; i < this.rows.length; i++) {
       const row = this.rows[i];
       if (row && filter(row, i)) {
@@ -232,7 +214,6 @@ export class TableStorage {
       }
     }
 
-    // Remove from indices first
     for (const rowIndex of indicesToDelete) {
       const row = this.rows[rowIndex];
       if (!row) continue;
@@ -245,7 +226,6 @@ export class TableStorage {
       }
     }
 
-    // Remove rows (in reverse order to maintain indices)
     for (let i = indicesToDelete.length - 1; i >= 0; i--) {
       const index = indicesToDelete[i];
       if (index !== undefined) {
@@ -253,7 +233,6 @@ export class TableStorage {
       }
     }
 
-    // Rebuild all indices to fix row index references
     this.rebuildAllIndices();
 
     return indicesToDelete.length;
@@ -310,6 +289,26 @@ export class TableStorage {
         .filter((entry) => entry.value !== null);
 
       IndexManager.rebuild(index, values);
+    }
+  }
+
+  public updateSchemaAndRows(newSchema: TableSchema, newRows: Row[]): void {
+    this.schema = newSchema;
+    this.rows = newRows;
+    this.indices = new Map();
+    this.initializeIndices();
+    for (let i = 0; i < this.rows.length; i++) {
+      const row = this.rows[i];
+      if (!row) continue;
+      for (const column of this.schema.columns) {
+        if (column.primaryKey || column.unique) {
+          const index = this.indices.get(column.name);
+          if (index) {
+            const value = row[column.name] ?? null;
+            IndexManager.addEntry(index, value, i);
+          }
+        }
+      }
     }
   }
 }

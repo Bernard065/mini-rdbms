@@ -1,8 +1,3 @@
-/**
- * Central export point for all type definitions
- */
-
-// Database types
 export type {
   ColumnDefinition,
   ColumnValue,
@@ -32,6 +27,9 @@ export type {
   DeleteStatement,
   ShowTablesStatement,
   DescribeStatement,
+  AlterTableStatement,
+  AlterTableAction,
+  DropTableStatement,
   ColumnConstraint,
   WhereClause,
   Condition,

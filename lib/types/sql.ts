@@ -1,8 +1,5 @@
 import { DataType, ColumnValue } from './database';
 
-/**
- * SQL statement types (discriminated union)
- */
 export type SQLStatement =
   | CreateTableStatement
   | InsertStatement
@@ -10,9 +7,40 @@ export type SQLStatement =
   | UpdateStatement
   | DeleteStatement
   | ShowTablesStatement
-  | DescribeStatement;
+  | DescribeStatement
+  | AlterTableStatement
+  | DropTableStatement;
+export interface AlterTableStatement {
+  readonly type: 'ALTER_TABLE';
+  readonly tableName: string;
+  readonly action: AlterTableAction;
+}
 
-// CREATE TABLE statement
+export type AlterTableAction =
+  | {
+      kind: 'ADD_COLUMN';
+      column: {
+        name: string;
+        dataType: DataType;
+        constraints: ReadonlyArray<ColumnConstraint>;
+      };
+    }
+  | { kind: 'DROP_COLUMN'; columnName: string }
+  | { kind: 'RENAME_COLUMN'; oldName: string; newName: string }
+  | {
+      kind: 'MODIFY_COLUMN';
+      column: {
+        name: string;
+        dataType: DataType;
+        constraints: ReadonlyArray<ColumnConstraint>;
+      };
+    };
+
+export interface DropTableStatement {
+  readonly type: 'DROP_TABLE';
+  readonly tableName: string;
+}
+
 export interface CreateTableStatement {
   readonly type: 'CREATE_TABLE';
   readonly tableName: string;
@@ -23,7 +51,6 @@ export interface CreateTableStatement {
   }>;
 }
 
-// INSERT statement
 export interface InsertStatement {
   readonly type: 'INSERT';
   readonly tableName: string;
@@ -31,7 +58,6 @@ export interface InsertStatement {
   readonly values: ReadonlyArray<ReadonlyArray<ColumnValue>>;
 }
 
-// SELECT statement
 export interface SelectStatement {
   readonly type: 'SELECT';
   readonly columns: ReadonlyArray<string> | '*';
@@ -42,7 +68,6 @@ export interface SelectStatement {
   readonly limit: number | null;
 }
 
-// UPDATE statement
 export interface UpdateStatement {
   readonly type: 'UPDATE';
   readonly tableName: string;
@@ -50,37 +75,31 @@ export interface UpdateStatement {
   readonly where: WhereClause | null;
 }
 
-// DELETE statement
 export interface DeleteStatement {
   readonly type: 'DELETE';
   readonly from: string;
   readonly where: WhereClause | null;
 }
 
-// SHOW TABLES statement
 export interface ShowTablesStatement {
   readonly type: 'SHOW_TABLES';
 }
 
-// DESCRIBE statement
 export interface DescribeStatement {
   readonly type: 'DESCRIBE';
   readonly tableName: string;
 }
 
-// Column constraints
 export type ColumnConstraint =
   | 'PRIMARY KEY'
   | 'AUTO_INCREMENT'
   | 'UNIQUE'
   | 'NOT NULL';
 
-// WHERE clause
 export interface WhereClause {
   readonly conditions: ReadonlyArray<Condition | LogicalCondition>;
 }
 
-// Single condition
 export interface Condition {
   readonly type: 'CONDITION';
   readonly column: string;
@@ -88,7 +107,6 @@ export interface Condition {
   readonly value: ColumnValue;
 }
 
-// Logical condition (AND/OR)
 export interface LogicalCondition {
   readonly type: 'LOGICAL';
   readonly operator: 'AND' | 'OR';
@@ -96,10 +114,8 @@ export interface LogicalCondition {
   readonly right: Condition | LogicalCondition;
 }
 
-// Comparison operators
 export type ComparisonOperator = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE';
 
-// JOIN clause
 export interface JoinClause {
   readonly type: 'INNER' | 'LEFT' | 'RIGHT';
   readonly table: string;
@@ -109,15 +125,11 @@ export interface JoinClause {
   };
 }
 
-// ORDER BY clause
 export interface OrderByClause {
   readonly column: string;
   readonly direction: 'ASC' | 'DESC';
 }
 
-/**
- * Type guard for SQL statements
- */
 export const isSQLStatement = (value: unknown): value is SQLStatement => {
   if (typeof value !== 'object' || value === null) {
     return false;
@@ -130,6 +142,8 @@ export const isSQLStatement = (value: unknown): value is SQLStatement => {
     statement.type === 'UPDATE' ||
     statement.type === 'DELETE' ||
     statement.type === 'SHOW_TABLES' ||
-    statement.type === 'DESCRIBE'
+    statement.type === 'DESCRIBE' ||
+    statement.type === 'ALTER_TABLE' ||
+    statement.type === 'DROP_TABLE'
   );
 };

@@ -9,6 +9,8 @@ import {
   DeleteStatement,
   ShowTablesStatement,
   DescribeStatement,
+  AlterTableStatement,
+  DropTableStatement,
   ColumnConstraint,
   WhereClause,
   Condition,
@@ -20,11 +22,18 @@ import {
   isValidDataType,
 } from '@/lib/types';
 
-// SQLParser class for parsing SQL statements
 export class SQLParser extends BaseParser {
   parse(): SQLStatement {
     if (this.match(TokenType.CREATE)) {
       return this.parseCreateTable();
+    }
+
+    if (this.match(TokenType.ALTER)) {
+      return this.parseAlterTable();
+    }
+
+    if (this.match(TokenType.DROP)) {
+      return this.parseDropTable();
     }
 
     if (this.match(TokenType.INSERT)) {
@@ -52,6 +61,71 @@ export class SQLParser extends BaseParser {
     }
 
     throw this.createSyntaxError('Unknown SQL statement');
+  }
+
+  // Parses ALTER TABLE statement
+  private parseAlterTable(): AlterTableStatement {
+    this.consume(TokenType.ALTER);
+    this.consume(TokenType.TABLE);
+    const tableName = this.parseIdentifier();
+
+    if (this.match(TokenType.ADD)) {
+      this.advance();
+      const column = this.parseColumnDefinition();
+      this.skipOptionalSemicolon();
+      return {
+        type: 'ALTER_TABLE',
+        tableName,
+        action: { kind: 'ADD_COLUMN', column },
+      };
+    }
+    if (this.match(TokenType.DROP)) {
+      this.advance();
+      this.consume(TokenType.COLUMN);
+      const columnName = this.parseIdentifier();
+      this.skipOptionalSemicolon();
+      return {
+        type: 'ALTER_TABLE',
+        tableName,
+        action: { kind: 'DROP_COLUMN', columnName },
+      };
+    }
+    if (this.match(TokenType.RENAME)) {
+      this.advance();
+      this.consume(TokenType.COLUMN);
+      const oldName = this.parseIdentifier();
+      this.consume(TokenType.TO);
+      const newName = this.parseIdentifier();
+      this.skipOptionalSemicolon();
+      return {
+        type: 'ALTER_TABLE',
+        tableName,
+        action: { kind: 'RENAME_COLUMN', oldName, newName },
+      };
+    }
+    if (this.match(TokenType.MODIFY)) {
+      this.advance();
+      const column = this.parseColumnDefinition();
+      this.skipOptionalSemicolon();
+      return {
+        type: 'ALTER_TABLE',
+        tableName,
+        action: { kind: 'MODIFY_COLUMN', column },
+      };
+    }
+    throw this.createSyntaxError('Unsupported ALTER TABLE action');
+  }
+
+  // Parses DROP TABLE statement
+  private parseDropTable(): DropTableStatement {
+    this.consume(TokenType.DROP);
+    this.consume(TokenType.TABLE);
+    const tableName = this.parseIdentifier();
+    this.skipOptionalSemicolon();
+    return {
+      type: 'DROP_TABLE',
+      tableName,
+    };
   }
 
   // Parses CREATE TABLE statement

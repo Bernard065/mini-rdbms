@@ -1,4 +1,3 @@
-// Supported SQL data types
 export enum DataType {
   INTEGER = 'INTEGER',
   TEXT = 'TEXT',
@@ -7,7 +6,6 @@ export enum DataType {
   DATE = 'DATE',
 }
 
-// Column definition for a table schema
 export interface ColumnDefinition {
   readonly name: string;
   readonly type: DataType;
@@ -18,13 +16,10 @@ export interface ColumnDefinition {
   readonly defaultValue: ColumnValue | null;
 }
 
-// Valid column value types
 export type ColumnValue = string | number | boolean | Date | null;
 
-// Row data structure (record in a table)
 export type Row = Record<string, ColumnValue>;
 
-// Table schema definition
 export interface TableSchema {
   readonly name: string;
   readonly columns: ReadonlyArray<ColumnDefinition>;
@@ -32,14 +27,12 @@ export interface TableSchema {
   readonly uniqueColumns: ReadonlyArray<string>;
 }
 
-// Index structure for fast lookups
 export interface Index {
   readonly columnName: string;
   readonly unique: boolean;
   readonly entries: Map<ColumnValue, Set<number>>;
 }
 
-// Complete table data structure
 export interface Table {
   readonly schema: TableSchema;
   readonly rows: Row[];
@@ -47,12 +40,10 @@ export interface Table {
   readonly autoIncrementCounter: number;
 }
 
-// Database structure containing all tables
 export interface Database {
   readonly tables: Map<string, Table>;
 }
 
-//Details about a constraint violation error.
 export interface ConstraintViolation {
   readonly type: 'PRIMARY_KEY' | 'UNIQUE' | 'NOT_NULL' | 'TYPE_MISMATCH';
   readonly column: string;
@@ -60,11 +51,14 @@ export interface ConstraintViolation {
   readonly message: string;
 }
 
-// Database error types for common failure cases.
 export type DatabaseError =
   | { readonly type: 'TABLE_NOT_FOUND'; readonly tableName: string }
   | { readonly type: 'TABLE_ALREADY_EXISTS'; readonly tableName: string }
-  | { readonly type: 'COLUMN_NOT_FOUND'; readonly columnName: string }
+  | {
+      readonly type: 'COLUMN_NOT_FOUND';
+      readonly columnName: string;
+      readonly message?: string;
+    }
   | {
       readonly type: 'CONSTRAINT_VIOLATION';
       readonly violation: ConstraintViolation;
@@ -72,7 +66,6 @@ export type DatabaseError =
   | { readonly type: 'SYNTAX_ERROR'; readonly message: string }
   | { readonly type: 'EXECUTION_ERROR'; readonly message: string };
 
-// Type guards for runtime type checking of database types.
 export const isValidDataType = (value: string): value is DataType => {
   return Object.values(DataType).includes(value as DataType);
 };

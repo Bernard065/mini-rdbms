@@ -1,8 +1,5 @@
 import { Row, TableSchema, DatabaseError } from './database';
 
-/**
- * Query execution result (discriminated union)
- */
 export type QueryResult =
   | SelectResult
   | InsertResult
@@ -11,9 +8,15 @@ export type QueryResult =
   | CreateTableResult
   | ShowTablesResult
   | DescribeResult
+  | DropTableResult
   | ErrorResult;
+export interface DropTableResult {
+  readonly success: true;
+  readonly type: 'DROP_TABLE';
+  readonly tableName: string;
+  readonly executionTime: number;
+}
 
-// Successful SELECT result
 export interface SelectResult {
   readonly success: true;
   readonly type: 'SELECT';
@@ -22,7 +25,6 @@ export interface SelectResult {
   readonly executionTime: number;
 }
 
-// Successful INSERT result
 export interface InsertResult {
   readonly success: true;
   readonly type: 'INSERT';
@@ -31,7 +33,6 @@ export interface InsertResult {
   readonly executionTime: number;
 }
 
-// Successful UPDATE result
 export interface UpdateResult {
   readonly success: true;
   readonly type: 'UPDATE';
@@ -39,7 +40,6 @@ export interface UpdateResult {
   readonly executionTime: number;
 }
 
-// Successful DELETE result
 export interface DeleteResult {
   readonly success: true;
   readonly type: 'DELETE';
@@ -47,7 +47,6 @@ export interface DeleteResult {
   readonly executionTime: number;
 }
 
-// Successful CREATE TABLE result
 export interface CreateTableResult {
   readonly success: true;
   readonly type: 'CREATE_TABLE';
@@ -55,7 +54,6 @@ export interface CreateTableResult {
   readonly executionTime: number;
 }
 
-// SHOW TABLES result
 export interface ShowTablesResult {
   readonly success: true;
   readonly type: 'SHOW_TABLES';
@@ -63,7 +61,6 @@ export interface ShowTablesResult {
   readonly executionTime: number;
 }
 
-// DESCRIBE table result
 export interface DescribeResult {
   readonly success: true;
   readonly type: 'DESCRIBE';
@@ -71,7 +68,6 @@ export interface DescribeResult {
   readonly executionTime: number;
 }
 
-// Error result
 export interface ErrorResult {
   readonly success: false;
   readonly type: 'ERROR';
@@ -79,9 +75,7 @@ export interface ErrorResult {
   readonly executionTime: number;
 }
 
-/**
- * Type guards for query results
- */
+// Type guards for QueryResult types
 export const isSuccessResult = (
   result: QueryResult
 ): result is Exclude<QueryResult, ErrorResult> => {
