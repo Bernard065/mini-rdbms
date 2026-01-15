@@ -9,7 +9,22 @@ export type SQLStatement =
   | ShowTablesStatement
   | DescribeStatement
   | AlterTableStatement
-  | DropTableStatement;
+  | DropTableStatement
+  | BeginTransactionStatement
+  | CommitTransactionStatement
+  | RollbackTransactionStatement;
+
+export interface BeginTransactionStatement {
+  readonly type: 'BEGIN';
+}
+
+export interface CommitTransactionStatement {
+  readonly type: 'COMMIT';
+}
+
+export interface RollbackTransactionStatement {
+  readonly type: 'ROLLBACK';
+}
 export interface AlterTableStatement {
   readonly type: 'ALTER_TABLE';
   readonly tableName: string;

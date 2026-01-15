@@ -24,6 +24,17 @@ export class TableStorage {
     this.initializeIndices();
   }
 
+  clone(): TableStorage {
+    const cloned = new TableStorage(this.schema);
+    cloned.rows = this.rows.map((row) => ({ ...row }));
+    cloned.indices = new Map();
+    for (const [name, index] of this.indices) {
+      cloned.indices.set(name, JSON.parse(JSON.stringify(index)));
+    }
+    cloned.autoIncrementCounter = this.autoIncrementCounter;
+    return cloned;
+  }
+
   getSchema(): TableSchema {
     return this.schema;
   }

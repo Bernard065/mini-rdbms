@@ -1,4 +1,7 @@
 export enum TokenType {
+  BEGIN = 'BEGIN',
+  COMMIT = 'COMMIT',
+  ROLLBACK = 'ROLLBACK',
   ADD = 'ADD',
   COLUMN = 'COLUMN',
   RENAME = 'RENAME',
@@ -78,6 +81,9 @@ export interface Token {
 }
 
 const KEYWORDS: Record<string, TokenType> = {
+  BEGIN: TokenType.BEGIN,
+  COMMIT: TokenType.COMMIT,
+  ROLLBACK: TokenType.ROLLBACK,
   ADD: TokenType.ADD,
   COLUMN: TokenType.COLUMN,
   RENAME: TokenType.RENAME,
