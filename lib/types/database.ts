@@ -64,7 +64,8 @@ export type DatabaseError =
       readonly violation: ConstraintViolation;
     }
   | { readonly type: 'SYNTAX_ERROR'; readonly message: string }
-  | { readonly type: 'EXECUTION_ERROR'; readonly message: string };
+  | { readonly type: 'EXECUTION_ERROR'; readonly message: string }
+  | { readonly type: 'TRANSACTION_ERROR'; readonly message: string };
 
 export const isValidDataType = (value: string): value is DataType => {
   return Object.values(DataType).includes(value as DataType);

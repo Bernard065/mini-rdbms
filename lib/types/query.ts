@@ -1,4 +1,4 @@
-import { Row, TableSchema, DatabaseError } from './database';
+import { DatabaseError, Row, TableSchema } from './database';
 
 export type QueryResult =
   | SelectResult
@@ -9,7 +9,14 @@ export type QueryResult =
   | ShowTablesResult
   | DescribeResult
   | DropTableResult
+  | OKResult
   | ErrorResult;
+
+export interface OKResult {
+  readonly success: true;
+  readonly type: 'OK';
+  readonly executionTime: number;
+}
 export interface DropTableResult {
   readonly success: true;
   readonly type: 'DROP_TABLE';
@@ -75,7 +82,6 @@ export interface ErrorResult {
   readonly executionTime: number;
 }
 
-// Type guards for QueryResult types
 export const isSuccessResult = (
   result: QueryResult
 ): result is Exclude<QueryResult, ErrorResult> => {

@@ -14,9 +14,13 @@ import { SQLStatement, QueryResult, Database, ErrorResult } from '@/lib/types';
 
 export class RDBMS {
   private tables: Map<string, TableStorage>;
+  private inTransaction: boolean;
+  private transactionTables: Map<string, TableStorage> | null;
 
   constructor() {
     this.tables = new Map();
+    this.inTransaction = false;
+    this.transactionTables = null;
   }
 
   // Executes a given SQL query
@@ -38,48 +42,56 @@ export class RDBMS {
         };
       }
 
+      let message = 'Unknown error';
+      if (typeof error === 'object' && error !== null && 'message' in error) {
+        const err = error as { message: unknown };
+        if (typeof err.message === 'string') {
+          message = err.message;
+        }
+      }
+
       return {
         success: false,
         type: 'ERROR',
         error: {
           type: 'SYNTAX_ERROR',
-          message: error instanceof Error ? error.message : 'Unknown error',
+          message,
         },
         executionTime: performance.now() - startTime,
       };
     }
   }
 
-  // Routes the SQL statement to the appropriate executor
   private executeStatement(statement: SQLStatement): QueryResult {
+    const tables =
+      this.inTransaction && this.transactionTables
+        ? this.transactionTables
+        : this.tables;
     switch (statement.type) {
       case 'SELECT':
-        return SelectExecutor.execute(statement, this.tables);
-
+        return SelectExecutor.execute(statement, tables);
       case 'INSERT':
-        return InsertExecutor.execute(statement, this.tables);
-
+        return InsertExecutor.execute(statement, tables);
       case 'UPDATE':
-        return UpdateExecutor.execute(statement, this.tables);
-
+        return UpdateExecutor.execute(statement, tables);
       case 'DELETE':
-        return DeleteExecutor.execute(statement, this.tables);
-
+        return DeleteExecutor.execute(statement, tables);
       case 'CREATE_TABLE':
-        return CreateTableExecutor.execute(statement, this.tables);
-
+        return CreateTableExecutor.execute(statement, tables);
       case 'ALTER_TABLE':
-        return AlterTableExecutor.execute(statement, this.tables);
-
+        return AlterTableExecutor.execute(statement, tables);
       case 'DROP_TABLE':
-        return DropTableExecutor.execute(statement, this.tables);
-
+        return DropTableExecutor.execute(statement, tables);
       case 'SHOW_TABLES':
-        return MetaExecutor.executeShowTables(statement, this.tables);
-
+        return MetaExecutor.executeShowTables(statement, tables);
       case 'DESCRIBE':
-        return MetaExecutor.executeDescribe(statement, this.tables);
-
+        return MetaExecutor.executeDescribe(statement, tables);
+      case 'BEGIN':
+        return this.beginTransaction();
+      case 'COMMIT':
+        return this.commitTransaction();
+      case 'ROLLBACK':
+        return this.rollbackTransaction();
       default:
         return {
           success: false,
@@ -93,28 +105,97 @@ export class RDBMS {
     }
   }
 
+  // Transaction management methods
+  beginTransaction(): QueryResult {
+    if (this.inTransaction) {
+      return {
+        success: false,
+        type: 'ERROR',
+        error: {
+          type: 'TRANSACTION_ERROR',
+          message: 'Transaction already in progress',
+        },
+        executionTime: 0,
+      };
+    }
+    // Deep copy tables for transaction isolation
+    this.transactionTables = new Map();
+    for (const [name, storage] of this.tables) {
+      this.transactionTables.set(name, storage.clone());
+    }
+    this.inTransaction = true;
+    return { success: true, type: 'OK', executionTime: 0 };
+  }
+
+  commitTransaction(): QueryResult {
+    if (!this.inTransaction || !this.transactionTables) {
+      return {
+        success: false,
+        type: 'ERROR',
+        error: {
+          type: 'TRANSACTION_ERROR',
+          message: 'No transaction in progress',
+        },
+        executionTime: 0,
+      };
+    }
+    this.tables = this.transactionTables;
+    this.transactionTables = null;
+    this.inTransaction = false;
+    return { success: true, type: 'OK', executionTime: 0 };
+  }
+
+  rollbackTransaction(): QueryResult {
+    if (!this.inTransaction) {
+      return {
+        success: false,
+        type: 'ERROR',
+        error: {
+          type: 'TRANSACTION_ERROR',
+          message: 'No transaction in progress',
+        },
+        executionTime: 0,
+      };
+    }
+    this.transactionTables = null;
+    this.inTransaction = false;
+    return { success: true, type: 'OK', executionTime: 0 };
+  }
+
   // Gets all table names in the database
   getTableNames(): string[] {
-    return Array.from(this.tables.keys()).sort();
+    const tables =
+      this.inTransaction && this.transactionTables
+        ? this.transactionTables
+        : this.tables;
+    return Array.from(tables.keys()).sort();
   }
 
-  // Gets a specific table storage
   getTable(name: string): TableStorage | null {
-    return this.tables.get(name) ?? null;
+    const tables =
+      this.inTransaction && this.transactionTables
+        ? this.transactionTables
+        : this.tables;
+    return tables.get(name) ?? null;
   }
 
-  // Checks if a table exists
   hasTable(name: string): boolean {
-    return this.tables.has(name);
+    const tables =
+      this.inTransaction && this.transactionTables
+        ? this.transactionTables
+        : this.tables;
+    return tables.has(name);
   }
 
-  // Gets the entire database structure
   getDatabase(): Database {
+    const tables =
+      this.inTransaction && this.transactionTables
+        ? this.transactionTables
+        : this.tables;
     const tableMap = new Map();
-    for (const [name, storage] of this.tables) {
+    for (const [name, storage] of tables) {
       tableMap.set(name, storage.toTable());
     }
-
     return {
       tables: tableMap,
     };
@@ -122,31 +203,36 @@ export class RDBMS {
 
   reset(): void {
     this.tables.clear();
+    if (this.transactionTables) {
+      this.transactionTables.clear();
+    }
+    this.inTransaction = false;
+    this.transactionTables = null;
   }
 
-  // Gets database statistics
   getStats(): {
     tableCount: number;
     totalRows: number;
     tables: Array<{ name: string; rowCount: number }>;
   } {
+    const tables =
+      this.inTransaction && this.transactionTables
+        ? this.transactionTables
+        : this.tables;
     let totalRows = 0;
-    const tables = [];
-
-    for (const [name, storage] of this.tables) {
+    const tableStats = [];
+    for (const [name, storage] of tables) {
       const rowCount = storage.getRowCount();
       totalRows += rowCount;
-      tables.push({ name, rowCount });
+      tableStats.push({ name, rowCount });
     }
-
     return {
-      tableCount: this.tables.size,
+      tableCount: tables.size,
       totalRows,
-      tables: tables.sort((a, b) => a.name.localeCompare(b.name)),
+      tables: tableStats.sort((a, b) => a.name.localeCompare(b.name)),
     };
   }
 
-  // Type guard for database errors
   private isDatabaseError(error: unknown): error is ErrorResult['error'] {
     return (
       typeof error === 'object' &&

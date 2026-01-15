@@ -24,42 +24,48 @@ import {
 
 export class SQLParser extends BaseParser {
   parse(): SQLStatement {
+    if (this.match(TokenType.BEGIN)) {
+      this.consume(TokenType.BEGIN);
+      this.skipOptionalSemicolon();
+      return { type: 'BEGIN' };
+    }
+    if (this.match(TokenType.COMMIT)) {
+      this.consume(TokenType.COMMIT);
+      this.skipOptionalSemicolon();
+      return { type: 'COMMIT' };
+    }
+    if (this.match(TokenType.ROLLBACK)) {
+      this.consume(TokenType.ROLLBACK);
+      this.skipOptionalSemicolon();
+      return { type: 'ROLLBACK' };
+    }
     if (this.match(TokenType.CREATE)) {
       return this.parseCreateTable();
     }
-
     if (this.match(TokenType.ALTER)) {
       return this.parseAlterTable();
     }
-
     if (this.match(TokenType.DROP)) {
       return this.parseDropTable();
     }
-
     if (this.match(TokenType.INSERT)) {
       return this.parseInsert();
     }
-
     if (this.match(TokenType.SELECT)) {
       return this.parseSelect();
     }
-
     if (this.match(TokenType.UPDATE)) {
       return this.parseUpdate();
     }
-
     if (this.match(TokenType.DELETE)) {
       return this.parseDelete();
     }
-
     if (this.match(TokenType.SHOW)) {
       return this.parseShowTables();
     }
-
     if (this.match(TokenType.DESCRIBE)) {
       return this.parseDescribe();
     }
-
     throw this.createSyntaxError('Unknown SQL statement');
   }
 
