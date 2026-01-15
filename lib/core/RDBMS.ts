@@ -6,6 +6,8 @@ import {
   DeleteExecutor,
   CreateTableExecutor,
   MetaExecutor,
+  AlterTableExecutor,
+  DropTableExecutor,
 } from '@/lib/executor';
 import { TableStorage } from '@/lib/storage';
 import { SQLStatement, QueryResult, Database, ErrorResult } from '@/lib/types';
@@ -65,6 +67,12 @@ export class RDBMS {
 
       case 'CREATE_TABLE':
         return CreateTableExecutor.execute(statement, this.tables);
+
+      case 'ALTER_TABLE':
+        return AlterTableExecutor.execute(statement, this.tables);
+
+      case 'DROP_TABLE':
+        return DropTableExecutor.execute(statement, this.tables);
 
       case 'SHOW_TABLES':
         return MetaExecutor.executeShowTables(statement, this.tables);

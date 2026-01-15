@@ -1,6 +1,9 @@
-// Token types for SQL lexical analysis
 export enum TokenType {
-  // Keywords
+  ADD = 'ADD',
+  COLUMN = 'COLUMN',
+  RENAME = 'RENAME',
+  TO = 'TO',
+  MODIFY = 'MODIFY',
   SELECT = 'SELECT',
   FROM = 'FROM',
   WHERE = 'WHERE',
@@ -38,23 +41,19 @@ export enum TokenType {
   TABLES = 'TABLES',
   DESCRIBE = 'DESCRIBE',
 
-  // Data types
   INTEGER = 'INTEGER',
   TEXT = 'TEXT',
   BOOLEAN = 'BOOLEAN',
   REAL = 'REAL',
   DATE = 'DATE',
 
-  // Literals
   STRING = 'STRING',
   NUMBER = 'NUMBER',
   TRUE = 'TRUE',
   FALSE = 'FALSE',
 
-  // Identifiers
   IDENTIFIER = 'IDENTIFIER',
 
-  // Operators
   EQUALS = 'EQUALS',
   NOT_EQUALS = 'NOT_EQUALS',
   GREATER_THAN = 'GREATER_THAN',
@@ -62,7 +61,6 @@ export enum TokenType {
   GREATER_EQUAL = 'GREATER_EQUAL',
   LESS_EQUAL = 'LESS_EQUAL',
 
-  // Punctuation
   COMMA = 'COMMA',
   SEMICOLON = 'SEMICOLON',
   LEFT_PAREN = 'LEFT_PAREN',
@@ -70,19 +68,21 @@ export enum TokenType {
   ASTERISK = 'ASTERISK',
   DOT = 'DOT',
 
-  // Special
   EOF = 'EOF',
 }
 
-// Token representation
 export interface Token {
   readonly type: TokenType;
   readonly value: string;
   readonly position: number;
 }
 
-// Mapping of keywords to token types
 const KEYWORDS: Record<string, TokenType> = {
+  ADD: TokenType.ADD,
+  COLUMN: TokenType.COLUMN,
+  RENAME: TokenType.RENAME,
+  TO: TokenType.TO,
+  MODIFY: TokenType.MODIFY,
   SELECT: TokenType.SELECT,
   FROM: TokenType.FROM,
   WHERE: TokenType.WHERE,
@@ -128,7 +128,6 @@ const KEYWORDS: Record<string, TokenType> = {
   FALSE: TokenType.FALSE,
 };
 
-// Tokenizer class for SQL input
 export class Tokenizer {
   private input: string;
   private position: number;
@@ -140,53 +139,44 @@ export class Tokenizer {
     this.currentChar = input.length > 0 ? (input[0] ?? null) : null;
   }
 
-  // Main method to tokenize the input
   tokenize(): Token[] {
     const tokens: Token[] = [];
 
     while (this.currentChar !== null) {
-      // Skip whitespace
       if (this.isWhitespace(this.currentChar)) {
         this.skipWhitespace();
         continue;
       }
 
-      // Skip comments
       if (this.currentChar === '-' && this.peek() === '-') {
         this.skipComment();
         continue;
       }
 
-      // String literals
       if (this.currentChar === "'" || this.currentChar === '"') {
         tokens.push(this.readString());
         continue;
       }
 
-      // Numbers
       if (this.isDigit(this.currentChar)) {
         tokens.push(this.readNumber());
         continue;
       }
 
-      // Identifiers and keywords
       if (this.isAlpha(this.currentChar)) {
         tokens.push(this.readIdentifierOrKeyword());
         continue;
       }
 
-      // Operators and punctuation
       const operator = this.readOperator();
       if (operator) {
         tokens.push(operator);
         continue;
       }
 
-      // Unknown character - skip it
       this.advance();
     }
 
-    // Add EOF token
     tokens.push({
       type: TokenType.EOF,
       value: '',
@@ -196,7 +186,6 @@ export class Tokenizer {
     return tokens;
   }
 
-  // Advances the current position and updates currentChar
   private advance(): void {
     this.position++;
     this.currentChar =
@@ -205,20 +194,17 @@ export class Tokenizer {
         : null;
   }
 
-  // Peeks at the next character without advancing
   private peek(offset: number = 1): string | null {
     const peekPos = this.position + offset;
     return peekPos < this.input.length ? (this.input[peekPos] ?? null) : null;
   }
 
-  // Skips whitespace characters
   private skipWhitespace(): void {
     while (this.currentChar !== null && this.isWhitespace(this.currentChar)) {
       this.advance();
     }
   }
 
-  // Skips single-line comments
   private skipComment(): void {
     while (this.currentChar !== null && this.currentChar !== '\n') {
       this.advance();
@@ -228,7 +214,6 @@ export class Tokenizer {
     }
   }
 
-  // Reads a string literal
   private readString(): Token {
     const startPos = this.position;
     const quote = this.currentChar;
@@ -236,7 +221,6 @@ export class Tokenizer {
 
     let value = '';
     while (this.currentChar !== null && this.currentChar !== quote) {
-      // Handle escaped quotes
       if (this.currentChar === '\\' && this.peek() === quote) {
         this.advance();
         value += quote;
@@ -247,7 +231,7 @@ export class Tokenizer {
       }
     }
 
-    this.advance(); // Skip closing quote
+    this.advance();
 
     return {
       type: TokenType.STRING,
@@ -256,7 +240,6 @@ export class Tokenizer {
     };
   }
 
-  // Reads a number (integer or real)
   private readNumber(): Token {
     const startPos = this.position;
     let value = '';
@@ -266,7 +249,6 @@ export class Tokenizer {
       this.advance();
     }
 
-    // Check for decimal point
     if (this.currentChar === '.' && this.peek() && this.isDigit(this.peek()!)) {
       value += this.currentChar;
       this.advance();
@@ -284,7 +266,6 @@ export class Tokenizer {
     };
   }
 
-  // Reads an identifier or keyword
   private readIdentifierOrKeyword(): Token {
     const startPos = this.position;
     let value = '';
@@ -307,14 +288,12 @@ export class Tokenizer {
     };
   }
 
-  // Reads operators and punctuation
   private readOperator(): Token | null {
     const startPos = this.position;
     const char = this.currentChar;
 
     if (!char) return null;
 
-    // Two-character operators
     if (char === '!' && this.peek() === '=') {
       this.advance();
       this.advance();
@@ -333,7 +312,6 @@ export class Tokenizer {
       return { type: TokenType.LESS_EQUAL, value: '<=', position: startPos };
     }
 
-    // Single-character operators
     const singleCharTokens: Record<string, TokenType> = {
       '=': TokenType.EQUALS,
       '>': TokenType.GREATER_THAN,
@@ -355,22 +333,18 @@ export class Tokenizer {
     return null;
   }
 
-  // Helper: checks if character is whitespace
   private isWhitespace(char: string): boolean {
     return /\s/.test(char);
   }
 
-  // Helper: checks if character is a digit
   private isDigit(char: string): boolean {
     return /[0-9]/.test(char);
   }
 
-  // Helper: checks if character is alphabetic
   private isAlpha(char: string): boolean {
     return /[a-zA-Z]/.test(char);
   }
 
-  // Helper: checks if character is alphanumeric
   private isAlphaNumeric(char: string): boolean {
     return /[a-zA-Z0-9]/.test(char);
   }
