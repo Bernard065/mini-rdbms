@@ -7,7 +7,6 @@ export interface ValidationResult {
 }
 
 export class TypeValidator {
-  
   static validate(
     value: unknown,
     expectedType: DataType,
