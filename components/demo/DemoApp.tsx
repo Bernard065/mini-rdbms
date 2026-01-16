@@ -27,7 +27,11 @@ interface JoinedOrder extends Record<string, ColumnValue> {
   customer_email: string | null;
 }
 
-const DemoApp = () => {
+interface DemoAppProps {
+  dataVersion?: number;
+}
+
+const DemoApp = ({ dataVersion }: DemoAppProps) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [joinedData, setJoinedData] = useState<JoinedOrder[]>([]);
@@ -77,7 +81,7 @@ const DemoApp = () => {
       }
     };
     loadData();
-  }, []);
+  }, [dataVersion]);
 
   const addCustomer = async () => {
     if (!customerName || !customerEmail) return;

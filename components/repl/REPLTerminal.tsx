@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { RDBMS, ResultFormatter } from '@/lib';
+import { ResultFormatter } from '@/lib';
 import { Button, Textarea, Card } from '@/components/ui';
 import { Play, Trash2, Clock } from 'lucide-react';
 
@@ -13,10 +13,10 @@ interface QueryHistoryItem {
 }
 
 interface REPLTerminalProps {
-  db: RDBMS;
+  onDataChanged?: () => void;
 }
 
-export function REPLTerminal({ db }: REPLTerminalProps) {
+export function REPLTerminal({ onDataChanged }: REPLTerminalProps) {
   const [query, setQuery] = useState('');
   const [history, setHistory] = useState<QueryHistoryItem[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -28,15 +28,28 @@ export function REPLTerminal({ db }: REPLTerminalProps) {
     }
   }, [history]);
 
-  const executeQuery = (): void => {
+  const executeQuery = async (): Promise<void> => {
     if (!query.trim()) return;
-
     setIsExecuting(true);
-
     try {
-      const result = db.execute(query.trim());
+      const res = await fetch('/api/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sql: query.trim() }),
+      });
+      const result = await res.json();
       const formatted = ResultFormatter.format(result);
-
+      // If the query is a mutating statement, trigger onDataChanged
+      const mutating = [
+        'INSERT',
+        'UPDATE',
+        'DELETE',
+        'CREATE_TABLE',
+        'DROP_TABLE',
+      ].includes(result.type);
+      if (result.success && mutating && onDataChanged) {
+        onDataChanged();
+      }
       setHistory((prev) => [
         ...prev,
         {
@@ -46,7 +59,6 @@ export function REPLTerminal({ db }: REPLTerminalProps) {
           executionTime: result.executionTime,
         },
       ]);
-
       setQuery('');
     } catch (error) {
       setHistory((prev) => [
@@ -78,12 +90,14 @@ export function REPLTerminal({ db }: REPLTerminalProps) {
   };
 
   const examples = [
-    'CREATE TABLE users (id INTEGER PRIMARY KEY AUTO_INCREMENT, name TEXT NOT NULL, email TEXT UNIQUE)',
-    "INSERT INTO users (name, email) VALUES ('Alice', 'alice@example.com'), ('Bob', 'bob@example.com')",
-    'SELECT * FROM users',
-    "SELECT * FROM users WHERE name LIKE 'A%'",
+    'CREATE TABLE customers (id INTEGER PRIMARY KEY AUTO_INCREMENT, name TEXT NOT NULL, email TEXT UNIQUE)',
+    "INSERT INTO customers (name, email) VALUES ('Alice', 'alice@example.com')",
+    'SELECT * FROM customers',
+    "SELECT * FROM customers WHERE name LIKE 'A%'",
+    'CREATE TABLE orders (id INTEGER PRIMARY KEY AUTO_INCREMENT, customerId INTEGER, product TEXT, amount REAL)',
+    "INSERT INTO orders (customerId, product, amount) VALUES (1, 'Cake', 20.00)",
+    'SELECT * FROM orders',
     'SHOW TABLES',
-    'DESCRIBE users',
   ];
 
   return (
