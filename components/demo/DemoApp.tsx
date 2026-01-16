@@ -1,40 +1,39 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
+import {
+  useGetCustomersQuery,
+  useGetOrdersQuery,
+  useAddCustomerMutation,
+  useUpdateCustomerMutation,
+  useDeleteCustomerMutation,
+  useAddOrderMutation,
+  useUpdateOrderMutation,
+  useDeleteOrderMutation,
+} from '@/app/services/api';
 import { Button, Input, Card, Table } from '@/components/ui';
-import { ColumnValue } from '@/lib/types';
 import { Plus, Trash2, Users, ShoppingCart, Edit } from 'lucide-react';
+import { Customer, Order } from '@/lib/types/api';
 
-interface Customer {
-  id: number;
-  name: string;
-  email: string;
-}
+import type { JoinedOrder } from '@/lib/types/joined-order';
 
-interface Order {
-  id: number;
-  customerId: number;
-  product: string;
-  amount: number;
-  customer?: Customer;
-}
-
-interface JoinedOrder extends Record<string, ColumnValue> {
-  order_id: number;
-  product: string;
-  amount: number;
-  customer_name: string | null;
-  customer_email: string | null;
-}
-
-interface DemoAppProps {
-  dataVersion?: number;
-}
-
-const DemoApp = ({ dataVersion }: DemoAppProps) => {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [joinedData, setJoinedData] = useState<JoinedOrder[]>([]);
+const DemoApp = () => {
+  const { data: customers = [] } = useGetCustomersQuery();
+  const { data: orders = [] } = useGetOrdersQuery();
+  const joinedData: JoinedOrder[] = useMemo(
+    () =>
+      (orders || []).map((order) => {
+        const customer = customers.find((c) => c.id === order.customerId);
+        return {
+          order_id: order.id,
+          product: order.product,
+          amount: order.amount,
+          customer_name: customer?.name ?? null,
+          customer_email: customer?.email ?? null,
+        };
+      }),
+    [orders, customers]
+  );
 
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
@@ -46,65 +45,23 @@ const DemoApp = ({ dataVersion }: DemoAppProps) => {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
-  // Fetch customers from API
-  const fetchCustomers = async (): Promise<Customer[]> => {
-    const res = await fetch('/api/customers');
-    const data = await res.json();
-    return data;
-  };
-
-  // Fetch orders from API
-  const fetchOrders = async (): Promise<Order[]> => {
-    const res = await fetch('/api/orders');
-    const data = await res.json();
-    return data;
-  };
-
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const customersData = await fetchCustomers();
-        setCustomers(customersData);
-        const ordersData = await fetchOrders();
-        setOrders(ordersData);
-        setJoinedData(
-          ordersData.map((order: Order) => ({
-            order_id: order.id,
-            product: order.product,
-            amount: order.amount,
-            customer_name: order.customer?.name ?? null,
-            customer_email: order.customer?.email ?? null,
-          }))
-        );
-      } catch (error) {
-        console.error('Error loading data:', error);
-      }
-    };
-    loadData();
-  }, [dataVersion]);
-
+  const [addCustomerMutation] = useAddCustomerMutation();
   const addCustomer = async () => {
     if (!customerName || !customerEmail) return;
-    const res = await fetch('/api/customers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: customerName, email: customerEmail }),
-    });
-    if (res.ok) {
+    try {
+      await addCustomerMutation({
+        name: customerName,
+        email: customerEmail,
+      }).unwrap();
       setCustomerName('');
       setCustomerEmail('');
-      try {
-        const customersData = await fetchCustomers();
-        setCustomers(customersData);
-      } catch (error) {
-        console.error('Error refreshing customers:', error);
-      }
-    } else {
-      const error = await res.json();
-      alert(error.error || 'Error adding customer');
+    } catch (error: unknown) {
+      const err = error as { data?: { error?: string } };
+      alert(err?.data?.error || 'Error adding customer');
     }
   };
 
+  const [deleteCustomerMutation] = useDeleteCustomerMutation();
   const deleteCustomer = async (id: number) => {
     if (
       !window.confirm(
@@ -112,74 +69,40 @@ const DemoApp = ({ dataVersion }: DemoAppProps) => {
       )
     )
       return;
-    const res = await fetch('/api/customers', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    });
-    if (res.ok) {
-      setCustomers(customers.filter((c) => c.id !== id));
-      setOrders(orders.filter((o) => o.customerId !== id));
-      setJoinedData(
-        joinedData.filter(
-          (j) => j.customer_name !== customers.find((c) => c.id === id)?.name
-        )
-      );
-    } else {
-      const error = await res.json();
-      alert(error.error || 'Error deleting customer');
+    try {
+      await deleteCustomerMutation({ id }).unwrap();
+    } catch (error: unknown) {
+      const err = error as { data?: { error?: string } };
+      alert(err?.data?.error || 'Error deleting customer');
     }
   };
 
+  const [addOrderMutation] = useAddOrderMutation();
   const addOrder = async () => {
     if (!orderCustomerId || !orderProduct || !orderAmount) return;
-    const res = await fetch('/api/orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    try {
+      await addOrderMutation({
         customerId: Number(orderCustomerId),
         product: orderProduct,
         amount: Number(orderAmount),
-      }),
-    });
-    if (res.ok) {
+      }).unwrap();
       setOrderCustomerId('');
       setOrderProduct('');
       setOrderAmount('');
-      try {
-        const ordersData = await fetchOrders();
-        setOrders(ordersData);
-        setJoinedData(
-          ordersData.map((order: Order) => ({
-            order_id: order.id,
-            product: order.product,
-            amount: order.amount,
-            customer_name: order.customer?.name ?? null,
-            customer_email: order.customer?.email ?? null,
-          }))
-        );
-      } catch (error) {
-        console.error('Error refreshing orders:', error);
-      }
-    } else {
-      const error = await res.json();
-      alert(error.error || 'Error adding order');
+    } catch (error: unknown) {
+      const err = error as { data?: { error?: string } };
+      alert(err?.data?.error || 'Error adding order');
     }
   };
 
+  const [deleteOrderMutation] = useDeleteOrderMutation();
   const deleteOrder = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this order?')) return;
-    const res = await fetch('/api/orders', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    });
-    if (res.ok) {
-      setOrders(orders.filter((o) => o.id !== id));
-      setJoinedData(joinedData.filter((j) => j.order_id !== id));
-    } else {
-      const error = await res.json();
-      alert(error.error || 'Error deleting order');
+    try {
+      await deleteOrderMutation({ id }).unwrap();
+    } catch (error: unknown) {
+      const err = error as { data?: { error?: string } };
+      alert(err?.data?.error || 'Error deleting order');
     }
   };
 
@@ -195,26 +118,21 @@ const DemoApp = ({ dataVersion }: DemoAppProps) => {
     setCustomerEmail('');
   };
 
+  const [updateCustomerMutation] = useUpdateCustomerMutation();
   const updateCustomer = async () => {
     if (!editingCustomer || !customerName || !customerEmail) return;
-    const res = await fetch('/api/customers', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    try {
+      await updateCustomerMutation({
         id: editingCustomer.id,
         name: customerName,
         email: customerEmail,
-      }),
-    });
-    if (res.ok) {
+      }).unwrap();
       setEditingCustomer(null);
       setCustomerName('');
       setCustomerEmail('');
-      const customersData = await fetchCustomers();
-      setCustomers(customersData);
-    } else {
-      const error = await res.json();
-      alert(error.error || 'Error updating customer');
+    } catch (error: unknown) {
+      const err = error as { data?: { error?: string } };
+      alert(err?.data?.error || 'Error updating customer');
     }
   };
 
@@ -232,38 +150,24 @@ const DemoApp = ({ dataVersion }: DemoAppProps) => {
     setOrderAmount('');
   };
 
+  const [updateOrderMutation] = useUpdateOrderMutation();
   const updateOrder = async () => {
     if (!editingOrder || !orderCustomerId || !orderProduct || !orderAmount)
       return;
-    const res = await fetch('/api/orders', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    try {
+      await updateOrderMutation({
         id: editingOrder.id,
         customerId: Number(orderCustomerId),
         product: orderProduct,
         amount: Number(orderAmount),
-      }),
-    });
-    if (res.ok) {
+      }).unwrap();
       setEditingOrder(null);
       setOrderCustomerId('');
       setOrderProduct('');
       setOrderAmount('');
-      const ordersData = await fetchOrders();
-      setOrders(ordersData);
-      setJoinedData(
-        ordersData.map((order: Order) => ({
-          order_id: order.id,
-          product: order.product,
-          amount: order.amount,
-          customer_name: order.customer?.name ?? null,
-          customer_email: order.customer?.email ?? null,
-        }))
-      );
-    } else {
-      const error = await res.json();
-      alert(error.error || 'Error updating order');
+    } catch (error: unknown) {
+      const err = error as { data?: { error?: string } };
+      alert(err?.data?.error || 'Error updating order');
     }
   };
 
@@ -304,7 +208,7 @@ const DemoApp = ({ dataVersion }: DemoAppProps) => {
               <p className="text-2xl font-bold">
                 $
                 {orders
-                  .reduce((sum, order) => sum + order.amount, 0)
+                  .reduce((sum: number, order: Order) => sum + order.amount, 0)
                   .toFixed(2)}
               </p>
             </div>
@@ -375,7 +279,7 @@ const DemoApp = ({ dataVersion }: DemoAppProps) => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {customers.map((customer) => (
+                  {customers.map((customer: Customer) => (
                     <tr key={customer.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {customer.id}
@@ -426,7 +330,7 @@ const DemoApp = ({ dataVersion }: DemoAppProps) => {
                 onChange={(e) => setOrderCustomerId(e.target.value)}
               >
                 <option value="">Select Customer</option>
-                {customers.map((customer) => (
+                {customers.map((customer: Customer) => (
                   <option key={customer.id} value={customer.id}>
                     {customer.name}
                   </option>
@@ -456,7 +360,7 @@ const DemoApp = ({ dataVersion }: DemoAppProps) => {
                 onChange={(e) => setOrderCustomerId(e.target.value)}
               >
                 <option value="">Select Customer</option>
-                {customers.map((customer) => (
+                {customers.map((customer: Customer) => (
                   <option key={customer.id} value={customer.id}>
                     {customer.name}
                   </option>
@@ -506,7 +410,7 @@ const DemoApp = ({ dataVersion }: DemoAppProps) => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {orders.map((order) => (
+                  {orders.map((order: Order) => (
                     <tr key={order.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {order.id}
