@@ -54,6 +54,7 @@ export type AlterTableAction =
 export interface DropTableStatement {
   readonly type: 'DROP_TABLE';
   readonly tableName: string;
+  readonly ifExists?: boolean;
 }
 
 export interface CreateTableStatement {
@@ -64,6 +65,7 @@ export interface CreateTableStatement {
     readonly dataType: DataType;
     readonly constraints: ReadonlyArray<ColumnConstraint>;
   }>;
+  readonly ifNotExists?: boolean;
 }
 
 export interface InsertStatement {

@@ -10,6 +10,15 @@ import { TypeValidator } from './TypeValidator';
 import { IndexManager } from './IndexManager';
 
 export class TableStorage {
+  /**
+   * Clears all rows, resets indices and auto-increment counter.
+   */
+  public clear(): void {
+    this.rows = [];
+    this.autoIncrementCounter = 1;
+    this.indices = new Map();
+    this.initializeIndices();
+  }
   private schema: TableSchema;
   private rows: Row[];
   private indices: Map<string, Index>;
@@ -102,7 +111,7 @@ export class TableStorage {
           }
         }
       }
-      if (column.unique) {
+      if (column.unique && !column.primaryKey) {
         const uniqueIndex = this.indices.get(column.name);
         if (uniqueIndex) {
           const violation = IndexManager.addEntry(uniqueIndex, value, rowIndex);

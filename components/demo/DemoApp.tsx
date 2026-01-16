@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { RDBMS } from '@/lib';
 import { Row } from '@/lib/types';
 import { Button, Input, Card, Table } from '@/components/ui';
-import { Plus, Trash2, Users, ShoppingCart } from 'lucide-react';
+import { Plus, Trash2, Users, ShoppingCart, Edit } from 'lucide-react';
 
 interface DemoAppProps {
   db: RDBMS;
@@ -21,6 +21,9 @@ export function DemoApp({ db }: DemoAppProps) {
   const [orderCustomerId, setOrderCustomerId] = useState('');
   const [orderProduct, setOrderProduct] = useState('');
   const [orderAmount, setOrderAmount] = useState('');
+
+  const [editingCustomer, setEditingCustomer] = useState<Row | null>(null);
+  const [editingOrder, setEditingOrder] = useState<Row | null>(null);
 
   const loadData = useCallback((): void => {
     const customersResult = db.execute('SELECT * FROM customers');
@@ -70,8 +73,8 @@ export function DemoApp({ db }: DemoAppProps) {
 
   useEffect(() => {
     initializeDatabase();
-    setTimeout(() => loadData(), 0);
-  }, [initializeDatabase, loadData]);
+    setTimeout(() => loadData(), 1);
+  }, [db, initializeDatabase, loadData]);
 
   const addCustomer = (): void => {
     if (!customerName || !customerEmail) return;
@@ -86,11 +89,33 @@ export function DemoApp({ db }: DemoAppProps) {
       setCustomerEmail('');
       loadData();
     } else {
-      alert(
-        result.error.type === 'CONSTRAINT_VIOLATION'
-          ? result.error.violation.message
-          : 'Error adding customer'
-      );
+      let errorMessage = 'Error adding customer';
+      if (result.error.type === 'CONSTRAINT_VIOLATION') {
+        if (
+          result.error.violation.message.includes('already exists in column') &&
+          result.error.violation.message.includes('id')
+        ) {
+          errorMessage =
+            'A customer with this ID already exists. Please try again or reset the database.';
+        } else if (
+          result.error.violation.message.includes('already exists in column') &&
+          result.error.violation.message.includes('email')
+        ) {
+          errorMessage =
+            'A customer with this email already exists. Please use a different email.';
+        } else {
+          errorMessage = result.error.violation.message;
+        }
+      } else if ('message' in result.error) {
+        errorMessage = `Error adding customer: ${result.error.message}`;
+      } else if (result.error.type === 'TABLE_NOT_FOUND') {
+        errorMessage = `Table '${result.error.tableName}' not found`;
+      } else if (result.error.type === 'TABLE_ALREADY_EXISTS') {
+        errorMessage = `Table '${result.error.tableName}' already exists`;
+      } else if (result.error.type === 'COLUMN_NOT_FOUND') {
+        errorMessage = `Column '${result.error.columnName}' not found`;
+      }
+      alert(errorMessage);
     }
   };
 
@@ -116,13 +141,92 @@ export function DemoApp({ db }: DemoAppProps) {
       setOrderAmount('');
       loadData();
     } else {
-      alert('Error adding order');
+      let errorMessage = 'Error adding order';
+      if (result.error.type === 'CONSTRAINT_VIOLATION') {
+        errorMessage = result.error.violation.message;
+      } else if ('message' in result.error) {
+        errorMessage = `Error adding order: ${result.error.message}`;
+      }
+      alert(errorMessage);
     }
   };
 
   const deleteOrder = (id: number): void => {
     db.execute(`DELETE FROM orders WHERE id = ${id}`);
     loadData();
+  };
+
+  const startEditCustomer = (customer: Row): void => {
+    setEditingCustomer(customer);
+    setCustomerName(customer.name as string);
+    setCustomerEmail(customer.email as string);
+  };
+
+  const cancelEditCustomer = (): void => {
+    setEditingCustomer(null);
+    setCustomerName('');
+    setCustomerEmail('');
+  };
+
+  const updateCustomer = (): void => {
+    if (!editingCustomer || !customerName || !customerEmail) return;
+
+    const result = db.execute(`
+      UPDATE customers
+      SET name = '${customerName}', email = '${customerEmail}'
+      WHERE id = ${editingCustomer.id}
+    `);
+
+    if (result.success) {
+      cancelEditCustomer();
+      loadData();
+    } else {
+      let errorMessage = 'Error updating customer';
+      if (result.error.type === 'CONSTRAINT_VIOLATION') {
+        errorMessage = result.error.violation.message;
+      } else if ('message' in result.error) {
+        errorMessage = `Error updating customer: ${result.error.message}`;
+      }
+      alert(errorMessage);
+    }
+  };
+
+  const startEditOrder = (order: Row): void => {
+    setEditingOrder(order);
+    setOrderCustomerId((order.customer_id as number).toString());
+    setOrderProduct(order.product as string);
+    setOrderAmount((order.amount as number).toString());
+  };
+
+  const cancelEditOrder = (): void => {
+    setEditingOrder(null);
+    setOrderCustomerId('');
+    setOrderProduct('');
+    setOrderAmount('');
+  };
+
+  const updateOrder = (): void => {
+    if (!editingOrder || !orderCustomerId || !orderProduct || !orderAmount)
+      return;
+
+    const result = db.execute(`
+      UPDATE orders
+      SET customer_id = ${orderCustomerId}, product = '${orderProduct}', amount = ${orderAmount}
+      WHERE id = ${editingOrder.id}
+    `);
+
+    if (result.success) {
+      cancelEditOrder();
+      loadData();
+    } else {
+      let errorMessage = 'Error updating order';
+      if (result.error.type === 'CONSTRAINT_VIOLATION') {
+        errorMessage = result.error.violation.message;
+      } else if ('message' in result.error) {
+        errorMessage = `Error updating order: ${result.error.message}`;
+      }
+      alert(errorMessage);
+    }
   };
 
   return (
@@ -172,23 +276,43 @@ export function DemoApp({ db }: DemoAppProps) {
 
       <Card title="Customers">
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <Input
-              placeholder="Customer Name"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-            />
-            <Input
-              type="email"
-              placeholder="Email"
-              value={customerEmail}
-              onChange={(e) => setCustomerEmail(e.target.value)}
-            />
-            <Button onClick={addCustomer}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Customer
-            </Button>
-          </div>
+          {editingCustomer ? (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <Input
+                placeholder="Customer Name"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+              />
+              <Input
+                type="email"
+                placeholder="Email"
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+              />
+              <Button onClick={updateCustomer}>Update Customer</Button>
+              <Button onClick={cancelEditCustomer} variant="secondary">
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Input
+                placeholder="Customer Name"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+              />
+              <Input
+                type="email"
+                placeholder="Email"
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+              />
+              <Button onClick={addCustomer}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Customer
+              </Button>
+            </div>
+          )}
 
           {customers.length > 0 ? (
             <div className="overflow-x-auto">
@@ -204,7 +328,10 @@ export function DemoApp({ db }: DemoAppProps) {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Email
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                      colSpan={2}
+                    >
                       Actions
                     </th>
                   </tr>
@@ -222,6 +349,14 @@ export function DemoApp({ db }: DemoAppProps) {
                         {customer.email as string}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <Button
+                          onClick={() => startEditCustomer(customer)}
+                          variant="secondary"
+                          size="sm"
+                          className="mr-2"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
                         <Button
                           onClick={() => deleteCustomer(customer.id as number)}
                           variant="danger"
@@ -245,38 +380,73 @@ export function DemoApp({ db }: DemoAppProps) {
 
       <Card title="Orders">
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <select
-              className="px-3 py-2 border border-gray-300 rounded-md"
-              value={orderCustomerId}
-              onChange={(e) => setOrderCustomerId(e.target.value)}
-            >
-              <option value="">Select Customer</option>
-              {customers.map((customer) => (
-                <option
-                  key={customer.id as number}
-                  value={customer.id as number}
-                >
-                  {customer.name as string}
-                </option>
-              ))}
-            </select>
-            <Input
-              placeholder="Product"
-              value={orderProduct}
-              onChange={(e) => setOrderProduct(e.target.value)}
-            />
-            <Input
-              type="number"
-              placeholder="Amount"
-              value={orderAmount}
-              onChange={(e) => setOrderAmount(e.target.value)}
-            />
-            <Button onClick={addOrder} disabled={customers.length === 0}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Order
-            </Button>
-          </div>
+          {editingOrder ? (
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              <select
+                className="px-3 py-2 border border-gray-300 rounded-md"
+                value={orderCustomerId}
+                onChange={(e) => setOrderCustomerId(e.target.value)}
+              >
+                <option value="">Select Customer</option>
+                {customers.map((customer) => (
+                  <option
+                    key={customer.id as number}
+                    value={customer.id as number}
+                  >
+                    {customer.name as string}
+                  </option>
+                ))}
+              </select>
+              <Input
+                placeholder="Product"
+                value={orderProduct}
+                onChange={(e) => setOrderProduct(e.target.value)}
+              />
+              <Input
+                type="number"
+                placeholder="Amount"
+                value={orderAmount}
+                onChange={(e) => setOrderAmount(e.target.value)}
+              />
+              <Button onClick={updateOrder}>Update Order</Button>
+              <Button onClick={cancelEditOrder} variant="secondary">
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <select
+                className="px-3 py-2 border border-gray-300 rounded-md"
+                value={orderCustomerId}
+                onChange={(e) => setOrderCustomerId(e.target.value)}
+              >
+                <option value="">Select Customer</option>
+                {customers.map((customer) => (
+                  <option
+                    key={customer.id as number}
+                    value={customer.id as number}
+                  >
+                    {customer.name as string}
+                  </option>
+                ))}
+              </select>
+              <Input
+                placeholder="Product"
+                value={orderProduct}
+                onChange={(e) => setOrderProduct(e.target.value)}
+              />
+              <Input
+                type="number"
+                placeholder="Amount"
+                value={orderAmount}
+                onChange={(e) => setOrderAmount(e.target.value)}
+              />
+              <Button onClick={addOrder} disabled={customers.length === 0}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Order
+              </Button>
+            </div>
+          )}
 
           {orders.length > 0 ? (
             <div className="overflow-x-auto">
@@ -295,7 +465,10 @@ export function DemoApp({ db }: DemoAppProps) {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Amount
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                      colSpan={2}
+                    >
                       Actions
                     </th>
                   </tr>
@@ -316,6 +489,14 @@ export function DemoApp({ db }: DemoAppProps) {
                         ${Number(order.amount).toFixed(2)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <Button
+                          onClick={() => startEditOrder(order)}
+                          variant="secondary"
+                          size="sm"
+                          className="mr-2"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
                         <Button
                           onClick={() => deleteOrder(order.id as number)}
                           variant="danger"

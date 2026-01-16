@@ -202,8 +202,15 @@ export class RDBMS {
   }
 
   reset(): void {
+    // Clear all tables to reset rows, indices, and auto-increment counters
+    for (const table of this.tables.values()) {
+      table.clear();
+    }
     this.tables.clear();
     if (this.transactionTables) {
+      for (const table of this.transactionTables.values()) {
+        table.clear();
+      }
       this.transactionTables.clear();
     }
     this.inTransaction = false;
