@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { RDBMS } from '@/lib';
+import { useState } from 'react';
 import { Database, Terminal, Boxes, GithubIcon } from 'lucide-react';
+
 import DemoApp from '@/components/demo/DemoApp';
 import { REPLTerminal } from '@/components/repl/REPLTerminal';
 
@@ -10,8 +10,9 @@ type Tab = 'demo' | 'repl';
 
 const Home = () => {
   const [activeTab, setActiveTab] = useState<Tab>('demo');
+  const [dataVersion, setDataVersion] = useState(0);
 
-  const db = useMemo(() => new RDBMS(), []);
+  const handleDataChanged = () => setDataVersion((v) => v + 1);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -91,7 +92,7 @@ const Home = () => {
                 and JOIN queries.
               </p>
             </div>
-            <DemoApp />
+            <DemoApp dataVersion={dataVersion} />
           </div>
         )}
 
@@ -106,7 +107,7 @@ const Home = () => {
                 SELECT, UPDATE, DELETE, and more.
               </p>
             </div>
-            <REPLTerminal db={db} />
+            <REPLTerminal onDataChanged={handleDataChanged} />
           </div>
         )}
       </main>
