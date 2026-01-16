@@ -1,19 +1,36 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { RDBMS } from '@/lib';
-import { Row } from '@/lib/types';
+import { useState, useEffect } from 'react';
 import { Button, Input, Card, Table } from '@/components/ui';
+import { ColumnValue } from '@/lib/types';
 import { Plus, Trash2, Users, ShoppingCart, Edit } from 'lucide-react';
 
-interface DemoAppProps {
-  db: RDBMS;
+interface Customer {
+  id: number;
+  name: string;
+  email: string;
 }
 
-export function DemoApp({ db }: DemoAppProps) {
-  const [customers, setCustomers] = useState<Row[]>([]);
-  const [orders, setOrders] = useState<Row[]>([]);
-  const [joinedData, setJoinedData] = useState<Row[]>([]);
+interface Order {
+  id: number;
+  customerId: number;
+  product: string;
+  amount: number;
+  customer?: Customer;
+}
+
+interface JoinedOrder extends Record<string, ColumnValue> {
+  order_id: number;
+  product: string;
+  amount: number;
+  customer_name: string | null;
+  customer_email: string | null;
+}
+
+const DemoApp = () => {
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [joinedData, setJoinedData] = useState<JoinedOrder[]>([]);
 
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
@@ -22,144 +39,118 @@ export function DemoApp({ db }: DemoAppProps) {
   const [orderProduct, setOrderProduct] = useState('');
   const [orderAmount, setOrderAmount] = useState('');
 
-  const [editingCustomer, setEditingCustomer] = useState<Row | null>(null);
-  const [editingOrder, setEditingOrder] = useState<Row | null>(null);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
-  const loadData = useCallback((): void => {
-    const customersResult = db.execute('SELECT * FROM customers');
-    if (customersResult.success && customersResult.type === 'SELECT') {
-      setCustomers(customersResult.rows as Row[]);
-    }
+  // Fetch customers from API
+  const fetchCustomers = async (): Promise<Customer[]> => {
+    const res = await fetch('/api/customers');
+    const data = await res.json();
+    return data;
+  };
 
-    const ordersResult = db.execute('SELECT * FROM orders');
-    if (ordersResult.success && ordersResult.type === 'SELECT') {
-      setOrders(ordersResult.rows as Row[]);
-    }
-
-    const joinResult = db.execute(`
-      SELECT
-        orders.id as order_id,
-        orders.product,
-        orders.amount,
-        customers.name as customer_name,
-        customers.email as customer_email
-      FROM orders
-      INNER JOIN customers ON orders.customer_id = customers.id
-    `);
-
-    if (joinResult.success && joinResult.type === 'SELECT') {
-      setJoinedData(joinResult.rows as Row[]);
-    }
-  }, [db]);
-
-  const initializeDatabase = useCallback((): void => {
-    db.execute(`
-      CREATE TABLE IF NOT EXISTS customers (
-        id INTEGER PRIMARY KEY AUTO_INCREMENT,
-        name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL
-      )
-    `);
-
-    db.execute(`
-      CREATE TABLE IF NOT EXISTS orders (
-        id INTEGER PRIMARY KEY AUTO_INCREMENT,
-        customer_id INTEGER NOT NULL,
-        product TEXT NOT NULL,
-        amount REAL NOT NULL
-      )
-    `);
-  }, [db]);
+  // Fetch orders from API
+  const fetchOrders = async (): Promise<Order[]> => {
+    const res = await fetch('/api/orders');
+    const data = await res.json();
+    return data;
+  };
 
   useEffect(() => {
-    initializeDatabase();
-    setTimeout(() => loadData(), 1);
-  }, [db, initializeDatabase, loadData]);
+    const loadData = async () => {
+      try {
+        const customersData = await fetchCustomers();
+        setCustomers(customersData);
+        const ordersData = await fetchOrders();
+        setOrders(ordersData);
+        setJoinedData(
+          ordersData.map((order: Order) => ({
+            order_id: order.id,
+            product: order.product,
+            amount: order.amount,
+            customer_name: order.customer?.name ?? null,
+            customer_email: order.customer?.email ?? null,
+          }))
+        );
+      } catch (error) {
+        console.error('Error loading data:', error);
+      }
+    };
+    loadData();
+  }, []);
 
-  const addCustomer = (): void => {
+  const addCustomer = async () => {
     if (!customerName || !customerEmail) return;
-
-    const result = db.execute(`
-      INSERT INTO customers (name, email)
-      VALUES ('${customerName}', '${customerEmail}')
-    `);
-
-    if (result.success) {
+    const res = await fetch('/api/customers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: customerName, email: customerEmail }),
+    });
+    if (res.ok) {
       setCustomerName('');
       setCustomerEmail('');
-      loadData();
-    } else {
-      let errorMessage = 'Error adding customer';
-      if (result.error.type === 'CONSTRAINT_VIOLATION') {
-        if (
-          result.error.violation.message.includes('already exists in column') &&
-          result.error.violation.message.includes('id')
-        ) {
-          errorMessage =
-            'A customer with this ID already exists. Please try again or reset the database.';
-        } else if (
-          result.error.violation.message.includes('already exists in column') &&
-          result.error.violation.message.includes('email')
-        ) {
-          errorMessage =
-            'A customer with this email already exists. Please use a different email.';
-        } else {
-          errorMessage = result.error.violation.message;
-        }
-      } else if ('message' in result.error) {
-        errorMessage = `Error adding customer: ${result.error.message}`;
-      } else if (result.error.type === 'TABLE_NOT_FOUND') {
-        errorMessage = `Table '${result.error.tableName}' not found`;
-      } else if (result.error.type === 'TABLE_ALREADY_EXISTS') {
-        errorMessage = `Table '${result.error.tableName}' already exists`;
-      } else if (result.error.type === 'COLUMN_NOT_FOUND') {
-        errorMessage = `Column '${result.error.columnName}' not found`;
+      try {
+        const customersData = await fetchCustomers();
+        setCustomers(customersData);
+      } catch (error) {
+        console.error('Error refreshing customers:', error);
       }
-      alert(errorMessage);
+    } else {
+      const error = await res.json();
+      alert(error.error || 'Error adding customer');
     }
   };
 
-  const deleteCustomer = (id: number): void => {
-    db.execute(`DELETE FROM orders WHERE customer_id = ${id}`);
-
-    db.execute(`DELETE FROM customers WHERE id = ${id}`);
-
-    loadData();
+  const deleteCustomer = async () => {
+    // Optionally, implement a DELETE endpoint for customers
+    alert('Delete customer is not implemented in the backend yet.');
   };
 
-  const addOrder = (): void => {
+  const addOrder = async () => {
     if (!orderCustomerId || !orderProduct || !orderAmount) return;
-
-    const result = db.execute(`
-      INSERT INTO orders (customer_id, product, amount)
-      VALUES (${orderCustomerId}, '${orderProduct}', ${orderAmount})
-    `);
-
-    if (result.success) {
+    const res = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerId: Number(orderCustomerId),
+        product: orderProduct,
+        amount: Number(orderAmount),
+      }),
+    });
+    if (res.ok) {
       setOrderCustomerId('');
       setOrderProduct('');
       setOrderAmount('');
-      loadData();
-    } else {
-      let errorMessage = 'Error adding order';
-      if (result.error.type === 'CONSTRAINT_VIOLATION') {
-        errorMessage = result.error.violation.message;
-      } else if ('message' in result.error) {
-        errorMessage = `Error adding order: ${result.error.message}`;
+      try {
+        const ordersData = await fetchOrders();
+        setOrders(ordersData);
+        setJoinedData(
+          ordersData.map((order: Order) => ({
+            order_id: order.id,
+            product: order.product,
+            amount: order.amount,
+            customer_name: order.customer?.name ?? null,
+            customer_email: order.customer?.email ?? null,
+          }))
+        );
+      } catch (error) {
+        console.error('Error refreshing orders:', error);
       }
-      alert(errorMessage);
+    } else {
+      const error = await res.json();
+      alert(error.error || 'Error adding order');
     }
   };
 
-  const deleteOrder = (id: number): void => {
-    db.execute(`DELETE FROM orders WHERE id = ${id}`);
-    loadData();
+  const deleteOrder = async () => {
+    // Optionally, implement a DELETE endpoint for orders
+    alert('Delete order is not implemented in the backend yet.');
   };
 
-  const startEditCustomer = (customer: Row): void => {
+  const startEditCustomer = (customer: Customer): void => {
     setEditingCustomer(customer);
-    setCustomerName(customer.name as string);
-    setCustomerEmail(customer.email as string);
+    setCustomerName(customer.name);
+    setCustomerEmail(customer.email);
   };
 
   const cancelEditCustomer = (): void => {
@@ -168,34 +159,15 @@ export function DemoApp({ db }: DemoAppProps) {
     setCustomerEmail('');
   };
 
-  const updateCustomer = (): void => {
-    if (!editingCustomer || !customerName || !customerEmail) return;
-
-    const result = db.execute(`
-      UPDATE customers
-      SET name = '${customerName}', email = '${customerEmail}'
-      WHERE id = ${editingCustomer.id}
-    `);
-
-    if (result.success) {
-      cancelEditCustomer();
-      loadData();
-    } else {
-      let errorMessage = 'Error updating customer';
-      if (result.error.type === 'CONSTRAINT_VIOLATION') {
-        errorMessage = result.error.violation.message;
-      } else if ('message' in result.error) {
-        errorMessage = `Error updating customer: ${result.error.message}`;
-      }
-      alert(errorMessage);
-    }
+  const updateCustomer = async () => {
+    alert('Update customer is not implemented in the backend yet.');
   };
 
-  const startEditOrder = (order: Row): void => {
+  const startEditOrder = (order: Order): void => {
     setEditingOrder(order);
-    setOrderCustomerId((order.customer_id as number).toString());
-    setOrderProduct(order.product as string);
-    setOrderAmount((order.amount as number).toString());
+    setOrderCustomerId(order.customerId.toString());
+    setOrderProduct(order.product);
+    setOrderAmount(order.amount.toString());
   };
 
   const cancelEditOrder = (): void => {
@@ -205,28 +177,8 @@ export function DemoApp({ db }: DemoAppProps) {
     setOrderAmount('');
   };
 
-  const updateOrder = (): void => {
-    if (!editingOrder || !orderCustomerId || !orderProduct || !orderAmount)
-      return;
-
-    const result = db.execute(`
-      UPDATE orders
-      SET customer_id = ${orderCustomerId}, product = '${orderProduct}', amount = ${orderAmount}
-      WHERE id = ${editingOrder.id}
-    `);
-
-    if (result.success) {
-      cancelEditOrder();
-      loadData();
-    } else {
-      let errorMessage = 'Error updating order';
-      if (result.error.type === 'CONSTRAINT_VIOLATION') {
-        errorMessage = result.error.violation.message;
-      } else if ('message' in result.error) {
-        errorMessage = `Error updating order: ${result.error.message}`;
-      }
-      alert(errorMessage);
-    }
+  const updateOrder = async () => {
+    alert('Update order is not implemented in the backend yet.');
   };
 
   return (
@@ -266,7 +218,7 @@ export function DemoApp({ db }: DemoAppProps) {
               <p className="text-2xl font-bold">
                 $
                 {orders
-                  .reduce((sum, order) => sum + Number(order.amount || 0), 0)
+                  .reduce((sum, order) => sum + order.amount, 0)
                   .toFixed(2)}
               </p>
             </div>
@@ -338,15 +290,15 @@ export function DemoApp({ db }: DemoAppProps) {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {customers.map((customer) => (
-                    <tr key={customer.id as number}>
+                    <tr key={customer.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {customer.id as number}
+                        {customer.id}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {customer.name as string}
+                        {customer.name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {customer.email as string}
+                        {customer.email}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <Button
@@ -358,7 +310,7 @@ export function DemoApp({ db }: DemoAppProps) {
                           <Edit className="w-4 h-4" />
                         </Button>
                         <Button
-                          onClick={() => deleteCustomer(customer.id as number)}
+                          onClick={() => deleteCustomer()}
                           variant="danger"
                           size="sm"
                         >
@@ -389,11 +341,8 @@ export function DemoApp({ db }: DemoAppProps) {
               >
                 <option value="">Select Customer</option>
                 {customers.map((customer) => (
-                  <option
-                    key={customer.id as number}
-                    value={customer.id as number}
-                  >
-                    {customer.name as string}
+                  <option key={customer.id} value={customer.id}>
+                    {customer.name}
                   </option>
                 ))}
               </select>
@@ -422,11 +371,8 @@ export function DemoApp({ db }: DemoAppProps) {
               >
                 <option value="">Select Customer</option>
                 {customers.map((customer) => (
-                  <option
-                    key={customer.id as number}
-                    value={customer.id as number}
-                  >
-                    {customer.name as string}
+                  <option key={customer.id} value={customer.id}>
+                    {customer.name}
                   </option>
                 ))}
               </select>
@@ -475,18 +421,18 @@ export function DemoApp({ db }: DemoAppProps) {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {orders.map((order) => (
-                    <tr key={order.id as number}>
+                    <tr key={order.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {order.id as number}
+                        {order.id}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {order.customer_id as number}
+                        {order.customerId}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {order.product as string}
+                        {order.product}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        ${Number(order.amount).toFixed(2)}
+                        ${order.amount.toFixed(2)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <Button
@@ -498,7 +444,7 @@ export function DemoApp({ db }: DemoAppProps) {
                           <Edit className="w-4 h-4" />
                         </Button>
                         <Button
-                          onClick={() => deleteOrder(order.id as number)}
+                          onClick={() => deleteOrder()}
                           variant="danger"
                           size="sm"
                         >
@@ -541,4 +487,6 @@ export function DemoApp({ db }: DemoAppProps) {
       </Card>
     </div>
   );
-}
+};
+
+export default DemoApp;

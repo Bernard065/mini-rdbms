@@ -3,12 +3,12 @@
 import { useState, useMemo } from 'react';
 import { RDBMS } from '@/lib';
 import { Database, Terminal, Boxes, GithubIcon } from 'lucide-react';
-import { DemoApp } from '@/components/demo/DemoApp';
+import DemoApp from '@/components/demo/DemoApp';
 import { REPLTerminal } from '@/components/repl/REPLTerminal';
 
 type Tab = 'demo' | 'repl';
 
-export default function Home() {
+const Home = () => {
   const [activeTab, setActiveTab] = useState<Tab>('demo');
 
   const db = useMemo(() => new RDBMS(), []);
@@ -91,7 +91,7 @@ export default function Home() {
                 and JOIN queries.
               </p>
             </div>
-            <DemoApp db={db} />
+            <DemoApp />
           </div>
         )}
 
@@ -162,4 +162,6 @@ export default function Home() {
       </footer>
     </div>
   );
-}
+};
+
+export default Home;
