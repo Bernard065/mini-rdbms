@@ -1,22 +1,13 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useExecuteSQLMutation } from '@/app/services/api';
 import { ResultFormatter } from '@/lib';
 import { Button, Textarea, Card } from '@/components/ui';
 import { Play, Trash2, Clock } from 'lucide-react';
+import type { QueryHistoryItem, REPLTerminalProps } from '@/lib/types/repl';
 
-interface QueryHistoryItem {
-  query: string;
-  result: string;
-  timestamp: Date;
-  executionTime?: number;
-}
-
-interface REPLTerminalProps {
-  onDataChanged?: () => void;
-}
-
-export function REPLTerminal({ onDataChanged }: REPLTerminalProps) {
+const REPLTerminal = ({ onDataChanged }: REPLTerminalProps) => {
   const [query, setQuery] = useState('');
   const [history, setHistory] = useState<QueryHistoryItem[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -28,18 +19,13 @@ export function REPLTerminal({ onDataChanged }: REPLTerminalProps) {
     }
   }, [history]);
 
+  const [executeSQL] = useExecuteSQLMutation();
   const executeQuery = async (): Promise<void> => {
     if (!query.trim()) return;
     setIsExecuting(true);
     try {
-      const res = await fetch('/api/execute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sql: query.trim() }),
-      });
-      const result = await res.json();
+      const result = await executeSQL({ sql: query.trim() }).unwrap();
       const formatted = ResultFormatter.format(result);
-      // If the query is a mutating statement, trigger onDataChanged
       const mutating = [
         'INSERT',
         'UPDATE',
@@ -217,4 +203,6 @@ export function REPLTerminal({ onDataChanged }: REPLTerminalProps) {
       </Card>
     </div>
   );
-}
+};
+
+export default REPLTerminal;
