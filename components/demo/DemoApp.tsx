@@ -101,9 +101,30 @@ const DemoApp = () => {
     }
   };
 
-  const deleteCustomer = async () => {
-    // Optionally, implement a DELETE endpoint for customers
-    alert('Delete customer is not implemented in the backend yet.');
+  const deleteCustomer = async (id: number) => {
+    if (
+      !window.confirm(
+        'Are you sure you want to delete this customer and all their orders?'
+      )
+    )
+      return;
+    const res = await fetch('/api/customers', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) {
+      setCustomers(customers.filter((c) => c.id !== id));
+      setOrders(orders.filter((o) => o.customerId !== id));
+      setJoinedData(
+        joinedData.filter(
+          (j) => j.customer_name !== customers.find((c) => c.id === id)?.name
+        )
+      );
+    } else {
+      const error = await res.json();
+      alert(error.error || 'Error deleting customer');
+    }
   };
 
   const addOrder = async () => {
@@ -142,9 +163,20 @@ const DemoApp = () => {
     }
   };
 
-  const deleteOrder = async () => {
-    // Optionally, implement a DELETE endpoint for orders
-    alert('Delete order is not implemented in the backend yet.');
+  const deleteOrder = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this order?')) return;
+    const res = await fetch('/api/orders', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) {
+      setOrders(orders.filter((o) => o.id !== id));
+      setJoinedData(joinedData.filter((j) => j.order_id !== id));
+    } else {
+      const error = await res.json();
+      alert(error.error || 'Error deleting order');
+    }
   };
 
   const startEditCustomer = (customer: Customer): void => {
@@ -160,7 +192,26 @@ const DemoApp = () => {
   };
 
   const updateCustomer = async () => {
-    alert('Update customer is not implemented in the backend yet.');
+    if (!editingCustomer || !customerName || !customerEmail) return;
+    const res = await fetch('/api/customers', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: editingCustomer.id,
+        name: customerName,
+        email: customerEmail,
+      }),
+    });
+    if (res.ok) {
+      setEditingCustomer(null);
+      setCustomerName('');
+      setCustomerEmail('');
+      const customersData = await fetchCustomers();
+      setCustomers(customersData);
+    } else {
+      const error = await res.json();
+      alert(error.error || 'Error updating customer');
+    }
   };
 
   const startEditOrder = (order: Order): void => {
@@ -178,7 +229,38 @@ const DemoApp = () => {
   };
 
   const updateOrder = async () => {
-    alert('Update order is not implemented in the backend yet.');
+    if (!editingOrder || !orderCustomerId || !orderProduct || !orderAmount)
+      return;
+    const res = await fetch('/api/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: editingOrder.id,
+        customerId: Number(orderCustomerId),
+        product: orderProduct,
+        amount: Number(orderAmount),
+      }),
+    });
+    if (res.ok) {
+      setEditingOrder(null);
+      setOrderCustomerId('');
+      setOrderProduct('');
+      setOrderAmount('');
+      const ordersData = await fetchOrders();
+      setOrders(ordersData);
+      setJoinedData(
+        ordersData.map((order: Order) => ({
+          order_id: order.id,
+          product: order.product,
+          amount: order.amount,
+          customer_name: order.customer?.name ?? null,
+          customer_email: order.customer?.email ?? null,
+        }))
+      );
+    } else {
+      const error = await res.json();
+      alert(error.error || 'Error updating order');
+    }
   };
 
   return (
@@ -310,7 +392,7 @@ const DemoApp = () => {
                           <Edit className="w-4 h-4" />
                         </Button>
                         <Button
-                          onClick={() => deleteCustomer()}
+                          onClick={() => deleteCustomer(customer.id)}
                           variant="danger"
                           size="sm"
                         >
@@ -444,7 +526,7 @@ const DemoApp = () => {
                           <Edit className="w-4 h-4" />
                         </Button>
                         <Button
-                          onClick={() => deleteOrder()}
+                          onClick={() => deleteOrder(order.id)}
                           variant="danger"
                           size="sm"
                         >
