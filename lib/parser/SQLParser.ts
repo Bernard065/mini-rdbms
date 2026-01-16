@@ -126,11 +126,20 @@ export class SQLParser extends BaseParser {
   private parseDropTable(): DropTableStatement {
     this.consume(TokenType.DROP);
     this.consume(TokenType.TABLE);
+
+    let ifExists = false;
+    if (this.match(TokenType.IF)) {
+      this.advance();
+      this.consume(TokenType.EXISTS);
+      ifExists = true;
+    }
+
     const tableName = this.parseIdentifier();
     this.skipOptionalSemicolon();
     return {
       type: 'DROP_TABLE',
       tableName,
+      ifExists,
     };
   }
 
@@ -138,6 +147,14 @@ export class SQLParser extends BaseParser {
   private parseCreateTable(): CreateTableStatement {
     this.consume(TokenType.CREATE);
     this.consume(TokenType.TABLE);
+
+    let ifNotExists = false;
+    if (this.match(TokenType.IF)) {
+      this.advance();
+      this.consume(TokenType.NOT);
+      this.consume(TokenType.EXISTS);
+      ifNotExists = true;
+    }
 
     const tableName = this.parseIdentifier();
 
@@ -154,6 +171,7 @@ export class SQLParser extends BaseParser {
       type: 'CREATE_TABLE',
       tableName,
       columns,
+      ifNotExists,
     };
   }
 

@@ -17,6 +17,15 @@ export class CreateTableExecutor {
 
     try {
       if (tables.has(statement.tableName)) {
+        if (statement.ifNotExists) {
+          // Table exists and IF NOT EXISTS was specified, return success
+          return {
+            success: true,
+            type: 'CREATE_TABLE',
+            tableName: statement.tableName,
+            executionTime: performance.now() - startTime,
+          };
+        }
         return {
           success: false,
           type: 'ERROR',
