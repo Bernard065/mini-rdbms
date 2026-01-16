@@ -33,3 +33,38 @@ export async function GET() {
     );
   }
 }
+
+// PATCH: Update an order
+export async function PATCH(req: NextRequest) {
+  const data = await req.json();
+  try {
+    const order = await prisma.order.update({
+      where: { id: data.id },
+      data: {
+        customerId: data.customerId,
+        product: data.product,
+        amount: data.amount,
+      },
+    });
+    return NextResponse.json(order);
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Failed to update order', details: error },
+      { status: 400 }
+    );
+  }
+}
+
+// DELETE: Delete an order
+export async function DELETE(req: NextRequest) {
+  const { id } = await req.json();
+  try {
+    await prisma.order.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Failed to delete order', details: error },
+      { status: 400 }
+    );
+  }
+}
