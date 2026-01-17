@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Database, Terminal, Boxes, GithubIcon } from 'lucide-react';
 
 import DemoApp from '@/components/demo/DemoApp';
-import { REPLTerminal } from '@/components/repl/REPLTerminal';
+import REPLTerminal from '@/components/repl/REPLTerminal';
 
 type Tab = 'demo' | 'repl';
 
@@ -92,7 +92,7 @@ const Home = () => {
                 and JOIN queries.
               </p>
             </div>
-            <DemoApp dataVersion={dataVersion} />
+            <DemoApp key={dataVersion} />
           </div>
         )}
 
