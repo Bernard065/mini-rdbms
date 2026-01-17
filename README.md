@@ -2,6 +2,10 @@
 
 A TypeScript implementation of a relational database management system with SQL interface, built as a Next.js web application. This project demonstrates CRUD operations, basic indexing, primary/unique key constraints, and an interactive SQL REPL.
 
+## Live Demo
+
+[View Live Demo](https://mini-rdbms.vercel.app/)
+
 ## Features
 
 - **SQL Parser**: Custom SQL parser supporting DDL and DML operations
