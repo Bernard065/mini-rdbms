@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useExecuteSQLMutation } from '@/app/services/api';
+import { useDispatch } from 'react-redux';
+import { useExecuteSQLMutation, api } from '@/app/services/api';
 import { ResultFormatter } from '@/lib';
 import { Button, Textarea, Card } from '@/components/ui';
 import { Play, Trash2, Clock } from 'lucide-react';
-import type { QueryHistoryItem, REPLTerminalProps } from '@/lib/types/repl';
+import type { QueryHistoryItem } from '@/lib/types/repl';
 
-const REPLTerminal = ({ onDataChanged }: REPLTerminalProps) => {
+const REPLTerminal = () => {
+  const dispatch = useDispatch();
   const [query, setQuery] = useState('');
   const [history, setHistory] = useState<QueryHistoryItem[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -33,8 +35,9 @@ const REPLTerminal = ({ onDataChanged }: REPLTerminalProps) => {
         'CREATE_TABLE',
         'DROP_TABLE',
       ].includes(result.type);
-      if (result.success && mutating && onDataChanged) {
-        onDataChanged();
+      if (result.success && mutating) {
+        // Invalidate RTK Query cache for both tables
+        dispatch(api.util.invalidateTags(['Customer', 'Order']));
       }
       setHistory((prev) => [
         ...prev,

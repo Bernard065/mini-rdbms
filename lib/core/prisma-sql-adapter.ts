@@ -215,8 +215,18 @@ export async function executeSQLOnPrisma(
       try {
         let rowsAffected = 0;
         if (del.from === 'customers' || del.from === 'customer') {
-          const result = await prisma.customer.deleteMany({ where });
-          rowsAffected = result.count;
+          // For customers, we need to handle cascading deletes
+          // First find customers matching the where clause
+          const customersToDelete = await prisma.customer.findMany({ where });
+          for (const customer of customersToDelete) {
+            // Delete orders for this customer first
+            await prisma.order.deleteMany({
+              where: { customerId: customer.id },
+            });
+            // Then delete the customer
+            await prisma.customer.delete({ where: { id: customer.id } });
+            rowsAffected++;
+          }
         } else if (del.from === 'orders' || del.from === 'order') {
           const result = await prisma.order.deleteMany({ where });
           rowsAffected = result.count;
