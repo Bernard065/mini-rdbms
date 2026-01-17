@@ -1,24 +1,101 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mini RDBMS - Relational Database Management System
+
+A TypeScript implementation of a relational database management system with SQL interface, built as a Next.js web application. This project demonstrates CRUD operations, basic indexing, primary/unique key constraints, and an interactive SQL REPL.
+
+## Features
+
+- **SQL Parser**: Custom SQL parser supporting DDL and DML operations
+- **Database Backend**: PostgreSQL with Prisma ORM
+- **Interactive REPL**: Browser-based SQL query editor with history
+- **Web Demo**: Customer and order management application
+- **REST API**: Full CRUD operations via REST endpoints
+- **Type Safety**: Full TypeScript implementation
+
+## Tech Stack
+
+- **Frontend**: Next.js 14, React, Tailwind CSS, RTK Query
+- **Backend**: Next.js API Routes, Prisma ORM
+- **Database**: PostgreSQL
+- **Language**: TypeScript
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+
+- PostgreSQL database
+
+### Installation
+
+1. Clone the repository and install dependencies:
+
+```bash
+npm install
+```
+
+2. Set up your PostgreSQL database and update the connection string in your environment variables.
+
+3. Run database migrations:
+
+```bash
+npx prisma migrate dev
+```
+
+4. Start the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+5. Open [http://localhost:3000](http://localhost:3000) to view the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The application provides two main interfaces:
+
+### Web Demo
+
+- **Customer Management**: Add, edit, and delete customers
+- **Order Management**: Create orders linked to customers
+- **Data Visualization**: View joined customer-order data
+
+### SQL REPL
+
+- **Interactive Queries**: Execute SQL commands directly
+- **Supported Operations**: SELECT, INSERT, UPDATE, DELETE for customers and orders tables
+- **Query History**: View previous queries and results
+- **Example Queries**: Pre-loaded sample SQL statements
+
+### Supported SQL Operations
+
+## Screenshots
+
+### Demo Application
+![Demo Application](./screenshots/demo-application.png)
+
+### SQL REPL Terminal
+![SQL REPL Terminal](./screenshots/sql-repl-terminal.png)
+
+## Project Structure
+See `CHALLENGE.md` for detailed documentation on the implementation and architecture.
+SELECT * FROM customers;
+
+-- Add a new customer
+INSERT INTO customers (name, email) VALUES ('John Doe', 'john@example.com');
+
+-- Update customer information
+UPDATE customers SET name = 'Jane Doe' WHERE id = 1;
+
+-- Delete a customer (also deletes associated orders)
+DELETE FROM customers WHERE id = 1;
+
+-- View all orders
+SELECT * FROM orders;
+```
+
+## Project Structure
+
+See `CHALLENGE.md` for detailed documentation on the implementation and architecture.
 
 ## Learn More
 
