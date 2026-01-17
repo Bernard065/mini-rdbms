@@ -150,7 +150,7 @@ const Home = () => {
                 <li>• Next.js (App Router)</li>
                 <li>• TypeScript (Strict Mode)</li>
                 <li>• Tailwind CSS</li>
-                <li>• In-memory storage</li>
+                <li>• Persistent storage</li>
                 <li>• 100% type-safe</li>
               </ul>
             </div>
