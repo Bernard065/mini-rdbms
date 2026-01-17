@@ -68,16 +68,8 @@ The application provides two main interfaces:
 
 ### Supported SQL Operations
 
-## Screenshots
-
-### Demo Application
-![Demo Application](./screenshots/demo-application.png)
-
-### SQL REPL Terminal
-![SQL REPL Terminal](./screenshots/sql-repl-terminal.png)
-
-## Project Structure
-See `CHALLENGE.md` for detailed documentation on the implementation and architecture.
+```sql
+-- View all customers
 SELECT * FROM customers;
 
 -- Add a new customer
@@ -92,6 +84,14 @@ DELETE FROM customers WHERE id = 1;
 -- View all orders
 SELECT * FROM orders;
 ```
+
+## Screenshots
+
+### Demo Application
+![Demo Application](public/screenshots/demo-application.png)
+
+### SQL REPL Terminal
+![SQL REPL Terminal](public/screenshots/sql-repl-terminal.png)
 
 ## Project Structure
 
