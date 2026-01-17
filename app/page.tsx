@@ -10,9 +10,6 @@ type Tab = 'demo' | 'repl';
 
 const Home = () => {
   const [activeTab, setActiveTab] = useState<Tab>('demo');
-  const [dataVersion, setDataVersion] = useState(0);
-
-  const handleDataChanged = () => setDataVersion((v) => v + 1);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -92,7 +89,7 @@ const Home = () => {
                 and JOIN queries.
               </p>
             </div>
-            <DemoApp key={dataVersion} />
+            <DemoApp />
           </div>
         )}
 
@@ -107,7 +104,7 @@ const Home = () => {
                 SELECT, UPDATE, DELETE, and more.
               </p>
             </div>
-            <REPLTerminal onDataChanged={handleDataChanged} />
+            <REPLTerminal />
           </div>
         )}
       </main>
