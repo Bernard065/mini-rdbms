@@ -1,4 +1,4 @@
-export { RDBMS, ResultFormatter } from './core';
+export { ResultFormatter } from './core';
 
 export type {
   DataType,
@@ -28,20 +28,6 @@ export type {
   DescribeResult,
   ErrorResult,
 } from './types';
-
-// Storage (for advanced usage)
-export { TableStorage, TypeValidator, IndexManager } from './storage';
-
-// Parser (for advanced usage)
+// Parser
 export { SQLParser, Tokenizer } from './parser';
 export type { Token, TokenType } from './parser';
-
-// Executors (for advanced usage)
-export {
-  SelectExecutor,
-  InsertExecutor,
-  UpdateExecutor,
-  DeleteExecutor,
-  CreateTableExecutor,
-  MetaExecutor,
-} from './executor';
